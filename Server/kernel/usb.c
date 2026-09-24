@@ -149,7 +149,13 @@ static SceUdcdStringDescriptor string_default = {
 static UsbGamepadReport current_report;
 static UsbGamepadReport send_buffer __attribute__((aligned(64)));
 static UsbGamepadReport control_buffer __attribute__((aligned(64)));
-static unsigned char descriptor_buffer[64] __attribute__((aligned(64)));
+// Control answers are copied here: big enough for every descriptor we send
+static unsigned char descriptor_buffer[256] __attribute__((aligned(64)));
+
+// An answer shorter than requested that ends on a full 64-byte packet needs a zero-length packet to
+// tell the host it's complete; our answers never do, so none is needed. Keep it that way.
+_Static_assert(sizeof(report_descriptor) % 64 != 0, "report descriptor size must not be a multiple of 64");
+_Static_assert(sizeof(report_descriptor) <= 256, "report descriptor must fit descriptor_buffer");
 
 static SceUID event_flag = -1;
 static SceUID thread = -1;
@@ -219,9 +225,8 @@ static int process_request(int recipient, int arg, SceUdcdEP0DeviceRequest *req,
 			return send_control(&control_buffer, sizeof(control_buffer), req->wLength);
 		}
 	}else{
-		// SET_IDLE / SET_PROTOCOL: nothing to change, just accept them
-		if (type == USB_CTRLTYPE_TYPE_CLASS && rec == USB_CTRLTYPE_REC_INTERFACE &&
-			(req->bRequest == HID_REQUEST_SET_IDLE || req->bRequest == HID_REQUEST_SET_PROTOCOL)) return 0;
+		// SET_IDLE / SET_PROTOCOL / SET_REPORT (e.g. keyboard LEDs): nothing to change, accept them
+		return 0;
 	}
 	return -1;
 }
