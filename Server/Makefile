@@ -24,7 +24,7 @@ all: $(TARGET).vpk
 
 $(TARGET).vpk: $(TARGET).velf
 	vita-make-fself -s -c $< ./build/eboot.bin
-	vita-mksfoex -s TITLE_ID=$(TITLE) "$(TARGET)" param.sfo
+	vita-mksfoex -s TITLE_ID=$(TITLE) -s APP_VER=01.40 "$(TARGET)" param.sfo
 	cp -f param.sfo ./build/sce_sys/param.sfo
 	vita-pack-vpk -s ./build/sce_sys/param.sfo -b ./build/eboot.bin \
 				  --add ./build/sce_sys/icon0.png=sce_sys/icon0.png \
