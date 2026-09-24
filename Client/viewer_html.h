@@ -218,7 +218,7 @@ pill(76, -33.5, 0x0008); // Start
 const ps = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 2.8, 1.2, 32), new THREE.MeshPhysicalMaterial({ color: 0x1d1e23, roughness: 0.3, emissive: 0x1a3a66, emissiveIntensity: 0.6 }));
 ps.rotation.x = Math.PI / 2;
 ps.position.set(-73, -33, FRONT + 0.3);
-vita.add(ps);
+addPressable(ps, 0x10000, '#4da3ff', 'z', 0.6);
 
 // Shoulder buttons
 function shoulder(x, mask) {
@@ -325,7 +325,7 @@ addEventListener('resize', () => {
 
 const BUTTON_NAMES = [[0x0010, 'UP'], [0x0040, 'DOWN'], [0x0080, 'LEFT'], [0x0020, 'RIGHT'], [0x4000, 'CROSS'], [0x2000, 'CIRCLE'],
   [0x8000, 'SQUARE'], [0x1000, 'TRIANGLE'], [0x0100, 'L'], [0x0200, 'R'], [0x0008, 'START'], [0x0001, 'SELECT'],
-  [0x0400, 'L1'], [0x0800, 'R1'], [0x0002, 'L3'], [0x0004, 'R3']];
+  [0x0400, 'L1'], [0x0800, 'R1'], [0x0002, 'L3'], [0x0004, 'R3'], [0x10000, 'PS']];
 const fmt = (v, d) => v.map(x => x.toFixed(d).padStart(d + 4)).join(' ');
 
 let state = null;

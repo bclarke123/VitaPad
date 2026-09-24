@@ -16,6 +16,7 @@
 
 #include "protocol.h"
 #include "remap.h"
+#include "psbutton.h"
 
 #define NET_INIT_SIZE 1*1024*1024
 
@@ -114,7 +115,7 @@ static void fill_packet_v2(PadPacketV2 *pkg){
 		pkg->lx = pkg->ly = pkg->rx = pkg->ry = 128;
 		return;
 	}
-	pkg->buttons = remap_buttons(pad.buttons);
+	pkg->buttons = remap_buttons(pad.buttons) | ps_buttons();
 	pkg->lx = pad.lx;
 	pkg->ly = pad.ly;
 	pkg->rx = pad.rx;
@@ -245,6 +246,7 @@ int main(){
 	sceTouchGetPanelInfo(SCE_TOUCH_PORT_BACK, &panel_info[SCE_TOUCH_PORT_BACK]);
 	sceMotionStartSampling();
 	remap_load();
+	ps_init();
 
 	// Initializing graphics stuffs
 	vita2d_init();
@@ -306,6 +308,7 @@ int main(){
 			}
 		}else menu_combo_frames = 0;
 		if (remap_menu_open) remap_menu_update(pad.buttons);
+		ps_update();
 
 		vita2d_start_drawing();
 		vita2d_clear_screen();
@@ -314,15 +317,21 @@ int main(){
 		}
 		// With the screen off we draw a plain black frame: OLED pixels are off, so no burn-in
 		else if (!screen_off){
-			vita2d_pgf_draw_text(debug_font, 2, 20, text_color, 1.0, "VitaPad v.1.5 by Rinnegatamante");
+			vita2d_pgf_draw_text(debug_font, 2, 20, text_color, 1.0, "VitaPad v.1.6 by Rinnegatamante");
 			if (has_ip) vita2d_pgf_draw_textf(debug_font, 2, 60, text_color, 1.0, "Listening on:\nIP: %s\nPort: %d", vita_ip, GAMEPAD_PORT);
 			else vita2d_pgf_draw_text(debug_font, 2, 60, text_color, 1.0, "Waiting for Wi-Fi connection...");
 			vita2d_pgf_draw_textf(debug_font, 2, 200, text_color, 1.0, "Status: %s", connected ? "Connected!" : "Waiting connection...");
 			vita2d_pgf_draw_text(debug_font, 2, 240, text_color, 1.0, "Hold L + R + SELECT for 1 second to turn the screen off/on");
 			vita2d_pgf_draw_textf(debug_font, 2, 260, text_color, 1.0, "Hold L + R + START for 1 second to remap buttons (%d remapped)", remap_changed_count());
+			switch (ps_status()){
+			case PS_ON: vita2d_pgf_draw_text(debug_font, 2, 280, text_color, 1.0, "PS button: sent to the PC. Double-tap it for the LiveArea"); break;
+			case PS_OFF: vita2d_pgf_draw_text(debug_font, 2, 280, text_color, 1.0, "PS button: normal (change it in the remap menu)"); break;
+			default: vita2d_pgf_draw_text(debug_font, 2, 280, text_color, 1.0, "PS button: normal (enable Unsafe Homebrew in HENkaku settings to send it to the PC)"); break;
+			}
 			vita2d_pgf_draw_textf(debug_font, 2, 300, text_color, 1.0, "Thanks to MakiseKurisu & yuntiancherry for the ViGEm client support");
 			vita2d_pgf_draw_textf(debug_font, 2, 320, text_color, 1.0, "Thanks to Evengard for the vJoy client support");
 			vita2d_pgf_draw_textf(debug_font, 2, 340, text_color, 1.0, "Thanks to nyorem for the Linux client port");
+			vita2d_pgf_draw_textf(debug_font, 2, 360, text_color, 1.0, "Thanks to TheOfficialFloW (Adrenaline) for the PS button technique");
 			vita2d_pgf_draw_textf(debug_font, 2, 380, text_color, 1.0, "Thanks to my distinguished Patroners for their awesome support:");
 			vita2d_pgf_draw_textf(debug_font, 2, 400, text_color, 1.0, "@Sarkies_Proxy - ArkSource - Freddy Parra");
 			vita2d_pgf_draw_textf(debug_font, 2, 420, text_color, 1.0, "RaveHeart - Tain Sueiras - drd7of14 - psymu");

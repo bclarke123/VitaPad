@@ -25,5 +25,6 @@ enum {
 	SCE_CTRL_L3         = 0x000002,	//!< L3 button.
 	SCE_CTRL_R3         = 0x000004,	//!< R3 button.
 	SCE_CTRL_L1         = 0x000400,	//!< L1 button.
-	SCE_CTRL_R1         = 0x000800	//!< R1 button.
+	SCE_CTRL_R1         = 0x000800,	//!< R1 button.
+	SCE_CTRL_PSBUTTON   = 0x010000	//!< PS button (sent when the Vita captures it).
 };

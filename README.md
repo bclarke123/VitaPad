@@ -5,7 +5,7 @@ VitaPad allows you to use your PSVITA as a wireless PC controller. It supports W
 
 ## Usage
 
-* Install VPK file on PSVITA
+* Install VPK file on PSVITA. VitaPad needs **Enable Unsafe Homebrew** turned on in HENkaku settings (like VitaShell), because it loads a small kernel module to capture the PS button.
 * Open VitaPad on PSVITA
 * Optional: [Install vJoy driver](https://github.com/njz3/vJoy/releases/download/v2.2.0.0/vJoySetup.2.2.0.signed.exe) on Windows PC for vJoy functionality. Need to set `VJOY_MODE` to 1 in windows.xml. Configure the vJoy device with at least 10 buttons to get L3/R3.
 * Optional: [Install ViGEm driver](https://github.com/nefarius/ViGEmBus/releases) on Windows PC for DualShock 4 emulation. Need to set `VIGEM_MODE` to 1 in windows.xml. Touchpad and motion (gyro) support need ViGEmBus 1.17 or newer; on older drivers set `VIGEM_EXTENDED` to 0.
@@ -28,6 +28,14 @@ The PC client and the Vita app must be updated together: the new client will tel
 Hold L + R + START for 1 second on the Vita to open the remapping menu. Up/Down picks a button, Left/Right changes what it sends, Triangle resets everything and START saves and closes. Each Vita button can send any other Vita button, nothing, or the DualShock 4 buttons the Vita doesn't have: L1, R1, L3 and R3 (e.g. SELECT = L3). The PC receives no input while the menu is open.
 
 The mapping is saved on the Vita (`ux0:data/VitaPad/remap.txt`), so it works with every PC mode and survives reinstalling the PC client. L1/R1/L3/R3 work in ViGEm and vJoy mode; in keyboard mode they press `KEY_L1`, `KEY_R1`, `KEY_L3`, `KEY_R3` from the XML file (Q, E, Z, X by default). They also work with a PS TV controller.
+
+### PS button
+
+The PS button is sent to the PC too (the DualShock 4 PS button in ViGEm mode). **Double-tap** it to go back to the LiveArea like the normal PS button; holding it still opens the quick menu. You can turn this off from the remapping menu ("PS button" row). The first time VitaPad starts it loads its kernel module and restarts itself once.
+
+In vJoy mode the PS button is button 11 (needs a vJoy device with 11 or more buttons); in keyboard mode it presses `KEY_PS` (unmapped by default).
+
+Thanks to TheOfficialFloW's [Adrenaline](https://github.com/TheOfficialFloW/Adrenaline) for the technique.
 
 ### PC key mapping
 

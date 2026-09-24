@@ -190,6 +190,7 @@ bool vgSubmit(const PadPacketV2 *packet, const VigemOptions *options)
     if (packet->buttons & SCE_CTRL_R1) report.Report.wButtons |= DS4_BUTTON_SHOULDER_RIGHT;
     if (packet->buttons & SCE_CTRL_L3) report.Report.wButtons |= DS4_BUTTON_THUMB_LEFT;
     if (packet->buttons & SCE_CTRL_R3) report.Report.wButtons |= DS4_BUTTON_THUMB_RIGHT;
+    if (packet->buttons & SCE_CTRL_PSBUTTON) report.Report.bSpecial |= DS4_SPECIAL_BUTTON_PS;
 
     if (options->front_touch == VIGEM_TOUCH_BUTTONS)
         touchToButtons(&report, packet->front, packet->front_num, options->swap_shoulders);

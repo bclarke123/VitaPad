@@ -25,3 +25,5 @@
 <KEY_R1>0x0045</KEY_R1>
 <KEY_L3>0x005a</KEY_L3>
 <KEY_R3>0x0058</KEY_R3>
+<!-- Optional: key for the PS button (when the Vita app sends it to the PC). 0x0000 = unmapped -->
+<KEY_PS>0x0000</KEY_PS>

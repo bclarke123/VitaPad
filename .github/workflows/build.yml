@@ -16,11 +16,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build
         working-directory: Server
-        run: make
+        run: |
+          command -v cmake >/dev/null || apk add --no-cache cmake make
+          cmake -S . -B out
+          cmake --build out
       - uses: actions/upload-artifact@v4
         with:
           name: VitaPad-vita
-          path: Server/VitaPad.vpk
+          path: Server/out/VitaPad.vpk
 
   windows:
     name: Windows client

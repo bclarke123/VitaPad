@@ -72,7 +72,7 @@ typedef int sock_t;
 uint16_t KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT, KEY_TRIANGLE, KEY_SQUARE, KEY_CROSS, KEY_CIRCLE;
 uint16_t KEY_L, KEY_R, KEY_START, KEY_SELECT, KEY_LANALOG_UP, KEY_LANALOG_DOWN, KEY_LANALOG_LEFT;
 uint16_t KEY_LANALOG_RIGHT, KEY_RANALOG_UP, KEY_RANALOG_DOWN, KEY_RANALOG_LEFT, KEY_RANALOG_RIGHT;
-uint16_t KEY_L1, KEY_R1, KEY_L3, KEY_R3; // Optional (0 = unmapped), for remapped buttons or a PS TV controller
+uint16_t KEY_L1, KEY_R1, KEY_L3, KEY_R3, KEY_PS; // Optional (0 = unmapped), for remapped buttons, the PS button or a PS TV controller
 
 // Mouse
 #if defined(__WIN32__) || defined(__CYGWIN__)
@@ -114,7 +114,8 @@ enum {
 	VJOY_CTRL_CROSS      = 1 << 0,	//!< Cross button.
 	VJOY_CTRL_SQUARE     = 1 << 2,	//!< Square button.
 	VJOY_CTRL_L3         = 1 << 8,	//!< Left stick click (needs a vJoy device with 10+ buttons).
-	VJOY_CTRL_R3         = 1 << 9	//!< Right stick click (needs a vJoy device with 10+ buttons).
+	VJOY_CTRL_R3         = 1 << 9,	//!< Right stick click (needs a vJoy device with 10+ buttons).
+	VJOY_CTRL_PS         = 1 << 10	//!< PS button (needs a vJoy device with 11+ buttons).
 };
 #endif
 
@@ -258,6 +259,7 @@ void loadConfig(const char* path)
 	KEY_R1 = readOptionalKey(doc, "KEY_R1", KEY_R1);
 	KEY_L3 = readOptionalKey(doc, "KEY_L3", KEY_L3);
 	KEY_R3 = readOptionalKey(doc, "KEY_R3", KEY_R3);
+	KEY_PS = readOptionalKey(doc, "KEY_PS", KEY_PS);
 
 #ifdef __WIN32__
 	if (readBool(doc, "VJOY_MODE", false)) VJOY_MODE = true;
@@ -793,6 +795,7 @@ static void processVjoy(const PadPacket& data)
 	if (data.buttons & SCE_CTRL_R1) buttons = buttons | VJOY_CTRL_RBUMPER;
 	if (VJOY_BUTTONS >= 10 && (data.buttons & SCE_CTRL_L3)) buttons = buttons | VJOY_CTRL_L3;
 	if (VJOY_BUTTONS >= 10 && (data.buttons & SCE_CTRL_R3)) buttons = buttons | VJOY_CTRL_R3;
+	if (VJOY_BUTTONS >= 11 && (data.buttons & SCE_CTRL_PSBUTTON)) buttons = buttons | VJOY_CTRL_PS;
 	if (VJOY_ALTERNATE)
 	{
 		if (data.rx < 70)
@@ -893,7 +896,7 @@ static void processKeyboard(const PadPacket& data, const PadPacket& olddata)
 
 	// Buttons the Vita lacks (remapped buttons or a PS TV controller), only if a key is set
 	static const struct { uint32_t mask; uint16_t* key; } extra[] = {
-		{ SCE_CTRL_L1, &KEY_L1 }, { SCE_CTRL_R1, &KEY_R1 }, { SCE_CTRL_L3, &KEY_L3 }, { SCE_CTRL_R3, &KEY_R3 },
+		{ SCE_CTRL_L1, &KEY_L1 }, { SCE_CTRL_R1, &KEY_R1 }, { SCE_CTRL_L3, &KEY_L3 }, { SCE_CTRL_R3, &KEY_R3 }, { SCE_CTRL_PSBUTTON, &KEY_PS },
 	};
 	for (size_t i = 0; i < sizeof(extra) / sizeof(extra[0]); i++)
 	{
@@ -962,7 +965,7 @@ static void printMonitor(const PadPacketV2& packet)
 		{ SCE_CTRL_UP, "UP" }, { SCE_CTRL_DOWN, "DOWN" }, { SCE_CTRL_LEFT, "LEFT" }, { SCE_CTRL_RIGHT, "RIGHT" },
 		{ SCE_CTRL_CROSS, "CROSS" }, { SCE_CTRL_CIRCLE, "CIRCLE" }, { SCE_CTRL_SQUARE, "SQUARE" }, { SCE_CTRL_TRIANGLE, "TRIANGLE" },
 		{ SCE_CTRL_LTRIGGER, "L" }, { SCE_CTRL_RTRIGGER, "R" }, { SCE_CTRL_START, "START" }, { SCE_CTRL_SELECT, "SELECT" },
-		{ SCE_CTRL_L1, "L1" }, { SCE_CTRL_R1, "R1" }, { SCE_CTRL_L3, "L3" }, { SCE_CTRL_R3, "R3" },
+		{ SCE_CTRL_L1, "L1" }, { SCE_CTRL_R1, "R1" }, { SCE_CTRL_L3, "L3" }, { SCE_CTRL_R3, "R3" }, { SCE_CTRL_PSBUTTON, "PS" },
 	};
 	static uint64_t last = 0;
 	static int packets = 0;
@@ -1139,7 +1142,7 @@ int main(int argc,char** argv){
 	loadConfig(CONFIG_FILE);
 	life_tick = getLastModifiedTime(CONFIG_FILE);
 
-	printf("VitaPad Client v1.5 by Rinnegatamante\n\n");
+	printf("VitaPad Client v1.6 by Rinnegatamante\n\n");
 	if (MONITOR_MODE)
 	{
 		printf("MONITOR MODE: printing what the Vita sends, no input is emulated.\n\n");
