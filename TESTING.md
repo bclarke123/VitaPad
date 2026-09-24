@@ -53,6 +53,17 @@ Run `VitaPad --viewer` (add `--monitor` to skip controller emulation). The brows
 | 2b.4 | Turn slowly for a minute | Some left/right drift is normal (no compass); R fixes it |
 | 2b.5 | Stop the client | Page shows "VitaPad client closed" |
 
+## 1b. Button remapping (real Vita + `--monitor`)
+
+| # | Do | Expect |
+|---|----|--------|
+| 1b.1 | Hold L + R + START for 1 s | Remap menu opens; the monitor shows no buttons, centered sticks and no touches while it's open |
+| 1b.2 | Map Cross to Circle, Circle to None, Select to L3; press START | Menu closes; main screen says "3 remapped" |
+| 1b.3 | Press Cross, Circle, Select | Monitor shows CIRCLE, nothing, L3 |
+| 1b.4 | Close and reopen VitaPad on the Vita | Mapping is kept (saved in `ux0:data/VitaPad/remap.txt`) |
+| 1b.5 | Open the menu, press Triangle, then START | Everything back to normal, "0 remapped" |
+| 1b.6 | In ViGEm mode, map a button to L1/R1/L3/R3 | The controller tester shows that DS4 button |
+
 ## 3. Controller output (Windows, fake Vita or real Vita)
 
 Set `VIGEM_MODE` to 1 in `windows.xml`, run `VitaPad` (without `--monitor`) and open a controller tester: Steam > Settings > Controller > Test Device Inputs, DS4Windows, or https://hardwaretester.com/gamepad.
@@ -61,7 +72,7 @@ With the fake Vita the sequence repeats, so compare against this:
 
 | # | Expect |
 |---|--------|
-| 3.1 | Each face button, d-pad direction, Share (SELECT), Options (START), L2 (L), R2 (R) lights up in turn |
+| 3.1 | Each face button, d-pad direction, Share (SELECT), Options (START), L2 (L), R2 (R), then L1, R1, L3, R3 lights up in turn |
 | 3.2 | The front touch visits the corners: L1, R1, L3, R3 |
 | 3.3 | Rear touch slides across the DS4 touchpad (Steam's tester shows it) |
 | 3.4 | Motion: the controller rocks left/right (Steam's gyro view) |

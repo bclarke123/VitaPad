@@ -185,6 +185,11 @@ bool vgSubmit(const PadPacketV2 *packet, const VigemOptions *options)
     {
         report.Report.wButtons |= DS4_BUTTON_SQUARE;
     }
+    // Buttons the Vita lacks, sent by remapped buttons or by a PS TV controller
+    if (packet->buttons & SCE_CTRL_L1) report.Report.wButtons |= DS4_BUTTON_SHOULDER_LEFT;
+    if (packet->buttons & SCE_CTRL_R1) report.Report.wButtons |= DS4_BUTTON_SHOULDER_RIGHT;
+    if (packet->buttons & SCE_CTRL_L3) report.Report.wButtons |= DS4_BUTTON_THUMB_LEFT;
+    if (packet->buttons & SCE_CTRL_R3) report.Report.wButtons |= DS4_BUTTON_THUMB_RIGHT;
 
     if (options->front_touch == VIGEM_TOUCH_BUTTONS)
         touchToButtons(&report, packet->front, packet->front_num, options->swap_shoulders);
