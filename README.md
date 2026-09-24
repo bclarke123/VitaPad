@@ -9,7 +9,7 @@ VitaPad allows you to use your PSVITA as a wireless PC controller. It supports W
 * Open VitaPad on PSVITA
 * Optional: [Install vJoy driver](https://github.com/njz3/vJoy/releases/download/v2.2.0.0/vJoySetup.2.2.0.signed.exe) on Windows PC for vJoy functionality. Need to set `VJOY_MODE` to 1 in windows.xml. Configure the vJoy device with at least 10 buttons to get L3/R3.
 * Optional: [Install ViGEm driver](https://github.com/nefarius/ViGEmBus/releases) on Windows PC for DualShock 4 emulation. Need to set `VIGEM_MODE` to 1 in windows.xml. Touchpad and motion (gyro) support need ViGEmBus 1.17 or newer; on older drivers set `VIGEM_EXTENDED` to 0.
-* Open VitaPad on PC. It will find your Vita on the local network by itself and remember it for the next time (saved in `vita_ip.txt`). If it can't find it, insert the IP shown on PSVITA. You can also pass the IP on the command line: `VitaPad 192.168.1.20`.
+* Open VitaPad on PC (before or after the Vita app, it keeps looking until the Vita shows up). It will find your Vita on the local network by itself and remember it for the next time (saved in `vita_ip.txt`). If it's never found (e.g. your network blocks broadcasts), pass the IP shown on PSVITA on the command line, `VitaPad 192.168.1.20`, or write it in `vita_ip.txt`.
 
 If the connection drops (e.g. Wi-Fi hiccups or the Vita goes to sleep), the PC client releases every pressed input and reconnects automatically.
 

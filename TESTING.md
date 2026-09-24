@@ -14,7 +14,7 @@ Install `VitaPad.vpk` on the Vita and open it.
 | # | Do | Expect |
 |---|----|--------|
 | 1.1 | Open VitaPad with Wi-Fi off, then turn Wi-Fi on | "Waiting for Wi-Fi connection..." changes to the IP within a second or two |
-| 1.2 | On the PC run `VitaPad --monitor` (delete `vita_ip.txt` first) | "Found Vita at ...", then "Connection established!", and the Vita shows "Connected!" |
+| 1.2 | On the PC run `VitaPad --monitor` (delete `vita_ip.txt` first). Also try starting it before the Vita app | "Found Vita at ...", then "Connection established!", and the Vita shows "Connected!" |
 | 1.3 | Press every button, one at a time | Its name appears at the end of the line |
 | 1.4 | Move both sticks to each edge | Values reach about 0 and 255, rest near 128 |
 | 1.5 | Touch the front with one finger, then two | `front:` shows one, then two positions (0-1919, 0-1087) |
@@ -37,7 +37,8 @@ Run `python3 tools/fake_vita.py` and the client in another window.
 | 2.1 | Delete `vita_ip.txt`, run `VitaPad --monitor` | Finds the fake Vita by discovery; buttons cycle every 0.5 s, sticks circle, `accel`/`gyro` rock back and forth |
 | 2.2 | Run the fake Vita with `--drop-every 5` | Every 5 s: "Connection lost, reconnecting..." and back within about a second |
 | 2.3 | Run the fake Vita with `--legacy` | Client says the Vita app is outdated and exits |
-| 2.4 | Run it with `--no-discovery`, delete `vita_ip.txt` | Client says no Vita was found and asks for the IP; typing it connects |
+| 2.4 | Run it with `--no-discovery`, delete `vita_ip.txt` | Client says it's waiting for the Vita and keeps trying; running `VitaPad <IP>` instead connects |
+| 2.4b | Start the client first, the fake Vita 10 s later | Client waits quietly, then finds and connects to the fake Vita on its own |
 | 2.5 | Put a wrong IP in `vita_ip.txt` | Connecting to it fails, then discovery finds the right one and overwrites the file |
 
 ## 2b. 3D viewer (fake Vita or real Vita)
