@@ -31,6 +31,7 @@ typedef SOCKET sock_t;
 # include <arpa/inet.h>
 # include <ifaddrs.h>
 # include <net/if.h>
+# include <signal.h>
 typedef int sock_t;
 # define INVALID_SOCKET (-1)
 # define close_socket close
@@ -38,6 +39,7 @@ typedef int sock_t;
 
 #include "tinyxml2.h"
 #include "main.h"
+#include "viewer.h"
 
 // Input
 #if defined(__WIN32__) || defined(__CYGWIN__)
@@ -893,6 +895,9 @@ static void processKeyboard(const PadPacket& data, const PadPacket& olddata)
 // Monitor mode: print what the Vita sends instead of emulating any input
 bool MONITOR_MODE = false;
 
+// Viewer mode: live 3D view of the Vita in the browser
+bool VIEWER_MODE = false;
+
 static uint64_t nowMs()
 {
 	#ifdef __WIN32__
@@ -1052,6 +1057,7 @@ static int runSession(sock_t sock, time_t& life_tick)
 		// Old Vita apps ignore the request type and reply with a legacy packet
 		if (count == sizeof(PadPacket)) return SESSION_OUTDATED_SERVER;
 		if (count != sizeof(PadPacketV2)) return SESSION_LOST;
+		if (VIEWER_MODE) viewerUpdate(packet);
 		if (!processPacket(packet)) return SESSION_FATAL;
 	}
 }
@@ -1066,15 +1072,19 @@ int main(int argc,char** argv){
 	WSAStartup(versionWanted, &wsaData);
 	#endif
 
-	// Usage: VitaPad [--monitor] [Vita IP]
+	// Usage: VitaPad [--monitor] [--viewer] [Vita IP]
 	const char* ip_arg = NULL;
 	for (int i = 1; i < argc; i++)
 	{
 		if (strcmp(argv[i], "--monitor") == 0) MONITOR_MODE = true;
+		else if (strcmp(argv[i], "--viewer") == 0) VIEWER_MODE = true;
 		else ip_arg = argv[i];
 	}
 
     #ifdef __linux__
+    // A dropped connection must not kill the client while sending
+    signal(SIGPIPE, SIG_IGN);
+
     if (!MONITOR_MODE)
     {
         display = XOpenDisplay(0);
@@ -1118,6 +1128,12 @@ int main(int argc,char** argv){
     }
 	#endif
 
+	if (VIEWER_MODE && !viewerStart(VIEWER_PORT))
+	{
+		printf("ERROR: Unable to start the 3D viewer, is port %d already in use?\n", VIEWER_PORT);
+		VIEWER_MODE = false;
+	}
+	
 	// The Vita IP comes from the command line, or the last Vita we connected to, or automatic discovery
 	char host[64] = "";
 	if (ip_arg) snprintf(host, sizeof(host), "%s", ip_arg);
@@ -1159,9 +1175,11 @@ int main(int argc,char** argv){
 		fflush(stdout);
 		saveIp(host);
 		wasConnected = true;
+		if (VIEWER_MODE) viewerSetConnected(true);
 
 		result = runSession(sock, life_tick);
 		close_socket(sock);
+		if (VIEWER_MODE) viewerSetConnected(false);
 
 		// Releasing everything that was pressed when the connection dropped
 		PadPacketV2 neutral;

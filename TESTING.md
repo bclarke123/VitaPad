@@ -40,6 +40,18 @@ Run `python3 tools/fake_vita.py` and the client in another window.
 | 2.4 | Run it with `--no-discovery`, delete `vita_ip.txt` | Client says no Vita was found and asks for the IP; typing it connects |
 | 2.5 | Put a wrong IP in `vita_ip.txt` | Connecting to it fails, then discovery finds the right one and overwrites the file |
 
+## 2b. 3D viewer (fake Vita or real Vita)
+
+Run `VitaPad --viewer` (add `--monitor` to skip controller emulation). The browser opens http://localhost:5050/.
+
+| # | Do | Expect |
+|---|----|--------|
+| 2b.1 | With the fake Vita | Buttons light up and press in one by one, sticks circle, the front touch glows in each corner, the rear touch slides (pink ring on the screen, glow on the back with B), the model rocks left/right |
+| 2b.2 | With the real Vita: hold it in front of you and press R (Recenter) | Model faces you the same way the Vita does |
+| 2b.3 | Tilt, turn and flip the Vita | Model follows without lag; when you stop moving it settles and doesn't keep drifting up/down |
+| 2b.4 | Turn slowly for a minute | Some left/right drift is normal (no compass); R fixes it |
+| 2b.5 | Stop the client | Page shows "VitaPad client closed" |
+
 ## 3. Controller output (Windows, fake Vita or real Vita)
 
 Set `VIGEM_MODE` to 1 in `windows.xml`, run `VitaPad` (without `--monitor`) and open a controller tester: Steam > Settings > Controller > Test Device Inputs, DS4Windows, or https://hardwaretester.com/gamepad.

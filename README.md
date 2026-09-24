@@ -15,6 +15,8 @@ If the connection drops (e.g. Wi-Fi hiccups or the Vita goes to sleep), the PC c
 
 To avoid screen burn-in during long sessions, hold L + R + SELECT for 1 second on the Vita to turn the screen off (black). Do it again to turn it back on.
 
+Run `VitaPad --viewer` to open a live 3D view of your Vita in the browser: it follows the Vita's orientation (gyro + accelerometer), lights up pressed buttons, moves the sticks and shows front and rear touches. It runs alongside the normal controller emulation, only listens on localhost (port 5050), and needs internet the first time to download the 3D engine.
+
 Run `VitaPad --monitor` to see everything the Vita sends without emulating any input. See [TESTING.md](TESTING.md) for a full test checklist.
 
 The PC client and the Vita app must be updated together: the new client will tell you if the Vita app is outdated.
