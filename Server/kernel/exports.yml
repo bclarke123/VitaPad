@@ -1,4 +1,4 @@
-VitaPadKernel:
+VitaPadKernel2:
   attributes: 0
   version:
     major: 1
@@ -7,7 +7,7 @@ VitaPadKernel:
     start: module_start
     stop: module_stop
   libraries:
-    VitaPadKernelLibrary:
+    VitaPadKernel2Library:
       syscall: true
       functions:
         - vitapadKernelGetButtons
@@ -15,3 +15,8 @@ VitaPadKernel:
         - vitapadKernelUsbStop
         - vitapadKernelUsbSetReport
         - vitapadKernelUsbGetState
+
+# The module and library names carry an ABI version: bump it whenever the syscalls change.
+# A kernel module stays loaded until the Vita reboots, so an app update would otherwise find the
+# previous module (without the new functions) and crash calling them.
+# (Keep this comment at the end: vita_create_stubs reads the name from the first line.)

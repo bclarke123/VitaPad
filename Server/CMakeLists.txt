@@ -31,7 +31,7 @@ set_target_properties(VitaPad PROPERTIES LINK_FLAGS "-Wl,-q")
 add_dependencies(VitaPad vitapad_kernel_stubs)
 target_link_libraries(VitaPad
   # Weak: the app still starts when the kernel module isn't loaded
-  ${CMAKE_CURRENT_BINARY_DIR}/kernel/libVitaPadKernel_stub_weak.a
+  ${CMAKE_CURRENT_BINARY_DIR}/kernel/libVitaPadKernel2_stub_weak.a
   vita2d
   SceLibKernel_stub SceSysmodule_stub SceCtrl_stub SceTouch_stub SceMotion_stub
   m SceNet_stub SceNetCtl_stub SceAppUtil_stub ScePgf_stub
