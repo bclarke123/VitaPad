@@ -606,9 +606,9 @@ static std::vector<uint32_t> getBroadcastAddresses(sock_t sock)
 }
 
 // Looks for Vitas running VitaPad on the local network, returns true and fills host if one was picked
-static bool discoverVita(char* host, size_t size)
+static bool discoverVita(char* host, size_t size, bool verbose)
 {
-	printf("Searching for your Vita on the local network...\n");
+	if (verbose) printf("Searching for your Vita on the local network...\n");
 	sock_t sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (sock == INVALID_SOCKET) return false;
 	int one = 1;
@@ -643,7 +643,7 @@ static bool discoverVita(char* host, size_t size)
 
 	if (found.empty())
 	{
-		printf("No Vita found. Make sure VitaPad is running on your Vita and both devices are on the same network.\n");
+		if (verbose) printf("No Vita found yet.\n");
 		return false;
 	}
 
@@ -1150,42 +1150,50 @@ int main(int argc,char** argv){
 	if (ip_arg) snprintf(host, sizeof(host), "%s", ip_arg);
 	else if (loadSavedIp(host, sizeof(host))) printf("Using last Vita IP: %s (delete %s to forget it)\n", host, SAVED_IP_FILE);
 
-	bool wasConnected = false;
+	// Retries forever, so the PC client can be started before the Vita app.
+	// After the first failed round it keeps trying quietly.
+	bool waiting = false;
 	int result = SESSION_LOST;
 	for (;;){
 		sock_t sock = INVALID_SOCKET;
 		if (host[0])
 		{
-			printf("Connecting to %s:%d...\n", host, GAMEPAD_PORT);
-			fflush(stdout);
+			if (!waiting)
+			{
+				printf("Connecting to %s:%d...\n", host, GAMEPAD_PORT);
+				fflush(stdout);
+			}
 			sock = connectTo(host, CONNECT_TIMEOUT_MS);
 		}
 		if (sock == INVALID_SOCKET)
 		{
-			if (host[0]) printf("Unable to connect to %s.\n", host);
-			// The Vita may have got a new IP from the router, look for it
+			if (host[0] && !waiting) printf("Unable to connect to %s.\n", host);
+			// The Vita may not be running VitaPad yet, or may have got a new IP from the router: look for it
 			char found[64];
-			if (discoverVita(found, sizeof(found)) && strcmp(found, host) != 0)
+			if (discoverVita(found, sizeof(found), !waiting) && strcmp(found, host) != 0)
 			{
 				snprintf(host, sizeof(host), "%s", found);
-			}
-			else if (wasConnected)
-			{
-				// Keep trying to get back the Vita we lost
-				sleepMs(1000);
+				waiting = false;
 			}
 			else
 			{
-				printf("Insert Vita IP: ");
-				if (scanf("%63s", host) != 1) break;
+				if (!waiting)
+				{
+					printf("\nWaiting for your Vita... Open VitaPad on it and it will connect automatically.\n");
+					printf("Make sure both devices are on the same network. If it's never found, run \"VitaPad <Vita IP>\"\n");
+					printf("or put the IP shown on the Vita in %s. Press Ctrl+C to quit.\n", SAVED_IP_FILE);
+					fflush(stdout);
+					waiting = true;
+				}
+				sleepMs(1000);
 			}
 			continue;
 		}
+		waiting = false;
 
 		printf("Connection established!\n");
 		fflush(stdout);
 		saveIp(host);
-		wasConnected = true;
 		if (VIEWER_MODE) viewerSetConnected(true);
 
 		result = runSession(sock, life_tick);
