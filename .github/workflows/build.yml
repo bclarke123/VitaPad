@@ -1,0 +1,93 @@
+name: Build
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  vita:
+    name: Vita app (VPK)
+    runs-on: ubuntu-latest
+    container: vitasdk/vitasdk:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        working-directory: Server
+        run: make
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VitaPad-vita
+          path: Server/VitaPad.vpk
+
+  windows:
+    name: Windows client
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          path-type: inherit
+          install: make mingw-w64-x86_64-gcc
+      - name: Build
+        working-directory: Client
+        run: make windows
+      - name: Package
+        working-directory: Client
+        run: |
+          mkdir -p ../dist/VitaPad-windows
+          cp VitaPad.exe vJoyInterface.dll windows.xml ../dist/VitaPad-windows/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VitaPad-windows
+          path: dist/VitaPad-windows
+
+  linux:
+    name: Linux client
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libx11-dev libxtst-dev
+      - name: Build
+        working-directory: Client
+        run: make linux
+      - name: Package
+        working-directory: Client
+        run: |
+          mkdir -p ../dist/VitaPad-linux
+          cp VitaPad linux.xml ../dist/VitaPad-linux/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VitaPad-linux
+          path: dist/VitaPad-linux
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [vita, windows, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+      - name: Package
+        run: |
+          cp VitaPad-vita/VitaPad.vpk .
+          (cd VitaPad-windows && zip -r ../VitaPad-windows.zip .)
+          chmod +x VitaPad-linux/VitaPad
+          tar -czf VitaPad-linux.tar.gz -C VitaPad-linux .
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            VitaPad.vpk
+            VitaPad-windows.zip
+            VitaPad-linux.tar.gz

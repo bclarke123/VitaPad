@@ -1,6 +1,15 @@
 <!-- If you want to change mapping, look here: http://www.philipstorr.id.au/pcbook/book3/scancode.htm -->
 
 <VIGEM_MODE>0</VIGEM_MODE>
+<!-- ViGEm (DualShock 4) touch panels: 0 = unused, 1 = buttons (upper corners L1/R1, lower corners L3/R3), 2 = DS4 touchpad, 3 = DS4 touchpad click -->
+<VIGEM_FRONT_TOUCH>1</VIGEM_FRONT_TOUCH>
+<VIGEM_REAR_TOUCH>2</VIGEM_REAR_TOUCH>
+<!-- ViGEm: 1 = Vita L/R act as L1/R1 and the upper touch corners as L2/R2 -->
+<VIGEM_SWAP_SHOULDERS>0</VIGEM_SWAP_SHOULDERS>
+<!-- ViGEm: touchpad and motion support, needs ViGEmBus 1.17 or newer. Set to 0 on older drivers -->
+<VIGEM_EXTENDED>1</VIGEM_EXTENDED>
+<!-- ViGEm: send the Vita gyroscope and accelerometer as DS4 motion -->
+<VIGEM_MOTION>1</VIGEM_MOTION>
 <VJOY_MODE>0</VJOY_MODE>
 <VJOY_ALTERNATE>0</VJOY_ALTERNATE>
 <KEY_DOWN>0x1F</KEY_DOWN>

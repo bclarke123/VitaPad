@@ -82,3 +82,6 @@ Client/VitaPad
 
 Client/VitaPad.exe
 Client/vJoyInterface.dll
+
+# Remembered Vita IP
+Client/vita_ip.txt

@@ -2,9 +2,11 @@
 
 #include <stdint.h>
 
+#include "protocol.h"
+
 // PSVITA related stuffs
-#define SCREEN_WIDTH 1920
-#define SCREEN_HEIGHT 1088
+#define SCREEN_WIDTH TOUCH_WIDTH
+#define SCREEN_HEIGHT TOUCH_HEIGHT
 
 enum {
 	SCE_CTRL_SELECT     = 0x000001,	//!< Select button.
@@ -20,21 +22,3 @@ enum {
 	SCE_CTRL_CROSS      = 0x004000,	//!< Cross button.
 	SCE_CTRL_SQUARE     = 0x008000	//!< Square button.
 };
-
-// Touchpad const
-#define NO_INPUT 0
-#define MOUSE_MOV 0x01
-#define LEFT_CLICK 0x08
-#define RIGHT_CLICK 0x10
-
-// Server packet
-typedef struct{
-	uint32_t buttons;
-	uint8_t lx;
-	uint8_t ly;
-	uint8_t rx;
-	uint8_t ry;
-	uint16_t tx;
-	uint16_t ty;
-	uint8_t click;
-} PadPacket, *pPadPacket;
