@@ -323,11 +323,10 @@ int main(){
 			vita2d_pgf_draw_textf(debug_font, 2, 200, text_color, 1.0, "Status: %s", connected ? "Connected!" : "Waiting connection...");
 			vita2d_pgf_draw_text(debug_font, 2, 240, text_color, 1.0, "Hold L + R + SELECT for 1 second to turn the screen off/on");
 			vita2d_pgf_draw_textf(debug_font, 2, 260, text_color, 1.0, "Hold L + R + START for 1 second to remap buttons (%d remapped)", remap_changed_count());
-			switch (ps_status()){
-			case PS_ON: vita2d_pgf_draw_text(debug_font, 2, 280, text_color, 1.0, "PS button: sent to the PC. Double-tap it for the LiveArea"); break;
-			case PS_OFF: vita2d_pgf_draw_text(debug_font, 2, 280, text_color, 1.0, "PS button: normal (change it in the remap menu)"); break;
-			default: vita2d_pgf_draw_text(debug_font, 2, 280, text_color, 1.0, "PS button: normal (enable Unsafe Homebrew in HENkaku settings to send it to the PC)"); break;
-			}
+			if (!ps_available()) vita2d_pgf_draw_text(debug_font, 2, 280, text_color, 1.0, "PS button: normal (enable Unsafe Homebrew in HENkaku settings to send it to the PC)");
+			else if (ps_mode() == PS_MODE_DOUBLE_TAP) vita2d_pgf_draw_text(debug_font, 2, 280, text_color, 1.0, "PS button: sent to the PC. Double-tap it for the LiveArea");
+			else if (ps_mode() == PS_MODE_HOLD) vita2d_pgf_draw_text(debug_font, 2, 280, text_color, 1.0, "PS button: sent to the PC. Hold it for the LiveArea");
+			else vita2d_pgf_draw_text(debug_font, 2, 280, text_color, 1.0, "PS button: normal (change it in the remap menu)");
 			vita2d_pgf_draw_textf(debug_font, 2, 300, text_color, 1.0, "Thanks to MakiseKurisu & yuntiancherry for the ViGEm client support");
 			vita2d_pgf_draw_textf(debug_font, 2, 320, text_color, 1.0, "Thanks to Evengard for the vJoy client support");
 			vita2d_pgf_draw_textf(debug_font, 2, 340, text_color, 1.0, "Thanks to nyorem for the Linux client port");

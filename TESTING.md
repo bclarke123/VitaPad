@@ -71,9 +71,10 @@ Run `VitaPad --viewer` (add `--monitor` to skip controller emulation). The brows
 | 1c.1 | With Unsafe Homebrew on, open VitaPad for the first time after installing | It blinks (restarts once), then the main screen says "PS button: sent to the PC" |
 | 1c.2 | Tap PS once | Monitor shows PS; the Vita stays in VitaPad (no LiveArea, no "blocked" icon) |
 | 1c.3 | Double-tap PS | Monitor shows two PS taps and the Vita goes to the LiveArea; reopening VitaPad reconnects and single taps are captured again |
-| 1c.4 | Hold PS | Quick menu opens as usual |
+| 1c.4 | Hold PS for 2 s (double-tap mode) | Monitor shows PS held; no quick menu, no LiveArea |
+| 1c.4b | Remap menu: "Send to PC, hold for the LiveArea"; tap PS, double-tap PS, then hold it | Taps and double-taps only reach the PC; holding about 0.8 s goes to the LiveArea (monitor stops showing PS when it triggers) |
 | 1c.5 | Put the Vita to sleep and wake it, open VitaPad | Single taps are still captured (lock taken again after sleep) |
-| 1c.6 | Remap menu: set "PS button" to Normal, save | PS goes to the LiveArea on a single tap again; setting kept after restarting VitaPad |
+| 1c.6 | Remap menu: set "PS button" to Normal, save | PS goes to the LiveArea on a single tap and holding opens the quick menu again; setting kept after restarting VitaPad |
 | 1c.7 | With Unsafe Homebrew off | VitaPad still starts; main screen says to enable Unsafe Homebrew, PS works normally |
 | 1c.8 | In ViGEm mode, tap PS | The controller tester shows the PS button; Steam may open its overlay |
 

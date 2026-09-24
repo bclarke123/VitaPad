@@ -19,6 +19,8 @@
 
 // Two presses within this time go back to the LiveArea (like Adrenaline)
 #define DOUBLE_TAP_US (300 * 1000)
+// Holding this long goes back to the LiveArea in hold mode
+#define HOLD_US (800 * 1000)
 // After a double tap the PS button stays unlocked this long, so the system can act on it
 #define UNLOCK_US (3 * 1000 * 1000)
 // A gap this long between frames means the Vita slept or VitaPad was in the background
@@ -27,13 +29,16 @@
 // From the kernel module (weak import: resolved only once the module is loaded)
 int vitapadKernelGetButtons(uint32_t *buttons);
 
-#define PS_LOCK (SCE_SHELL_UTIL_LOCK_TYPE_PS_BTN_2)
+// The quick menu is locked too, so holding PS doesn't open it by accident
+#define PS_LOCK (SCE_SHELL_UTIL_LOCK_TYPE_PS_BTN_2 | SCE_SHELL_UTIL_LOCK_TYPE_QUICK_MENU)
 
 static int available = 0;
-static volatile int enabled = 1;
+static volatile int mode = PS_MODE_DOUBLE_TAP;
 static int locked = 0;
 static volatile uint32_t ps_state = 0;
 static uint64_t last_press = 0;
+static uint64_t press_start = 0;
+static int hold_done = 0;
 static uint64_t unlocked_until = 0;
 static uint64_t last_frame = 0;
 static uint32_t old_ps = 0;
@@ -71,7 +76,14 @@ void ps_init(void){
 	sceIoRemove(RESTART_FLAG);
 	available = 1;
 	sceShellUtilInitEvents(0);
-	if (enabled) lock();
+	if (mode != PS_MODE_NORMAL) lock();
+}
+
+// Gives the PS button back to the system for a moment and goes to the LiveArea
+static void go_home(uint64_t now){
+	unlock();
+	unlocked_until = now + UNLOCK_US;
+	sceAppMgrLaunchAppByName2(TITLE_ID, NULL, NULL);
 }
 
 void ps_update(void){
@@ -81,11 +93,11 @@ void ps_update(void){
 	// The lock doesn't survive sleep or going to the LiveArea: take it again
 	if (last_frame && now - last_frame > RESUME_GAP_US){
 		unlocked_until = 0;
-		if (enabled) lock();
+		if (mode != PS_MODE_NORMAL) lock();
 	}
 	last_frame = now;
 
-	if (!enabled){
+	if (mode == PS_MODE_NORMAL){
 		if (locked) unlock();
 		ps_state = 0;
 		return;
@@ -94,18 +106,29 @@ void ps_update(void){
 	uint32_t buttons = 0;
 	if (vitapadKernelGetButtons(&buttons) < 0) buttons = 0;
 	uint32_t ps = buttons & SCE_CTRL_PSBUTTON;
-	ps_state = ps;
-
-	// Double tap: give the PS button back to the system and go to the LiveArea
-	if (ps && !old_ps){
-		if (last_press && now - last_press < DOUBLE_TAP_US){
-			last_press = 0;
-			unlock();
-			unlocked_until = now + UNLOCK_US;
-			sceAppMgrLaunchAppByName2(TITLE_ID, NULL, NULL);
-		}else last_press = now;
-	}
+	int pressed = ps && !old_ps;
 	old_ps = ps;
+
+	if (mode == PS_MODE_DOUBLE_TAP){
+		ps_state = ps;
+		if (pressed){
+			if (last_press && now - last_press < DOUBLE_TAP_US){
+				last_press = 0;
+				go_home(now);
+			}else last_press = now;
+		}
+	}else{
+		// Hold mode: taps go to the PC, holding goes to the LiveArea (and stops being sent)
+		if (pressed){
+			press_start = now;
+			hold_done = 0;
+		}
+		if (ps && !hold_done && now - press_start >= HOLD_US){
+			hold_done = 1;
+			go_home(now);
+		}
+		ps_state = (ps && !hold_done) ? ps : 0;
+	}
 
 	if (unlocked_until && now > unlocked_until){
 		unlocked_until = 0;
@@ -114,17 +137,38 @@ void ps_update(void){
 }
 
 uint32_t ps_buttons(void){
-	return (available && enabled) ? ps_state : 0;
+	return (available && mode != PS_MODE_NORMAL) ? ps_state : 0;
 }
 
-int ps_status(void){
-	if (!available) return PS_UNAVAILABLE;
-	return enabled ? PS_ON : PS_OFF;
+int ps_available(void){
+	return available;
 }
 
-void ps_set_enabled(int value){
-	enabled = value;
+int ps_mode(void){
+	return mode;
+}
+
+void ps_set_mode(int value){
+	if (value < 0 || value >= PS_MODES_NUM) value = PS_MODE_DOUBLE_TAP;
+	mode = value;
+	last_press = 0;
+	hold_done = 0;
+	unlocked_until = 0;
 	if (!available) return;
-	if (enabled && !locked) lock();
-	if (!enabled && locked) unlock();
+	if (mode != PS_MODE_NORMAL && !locked) lock();
+	if (mode == PS_MODE_NORMAL && locked) unlock();
+}
+
+const char *ps_mode_id(int value){
+	static const char *ids[PS_MODES_NUM] = { "DoubleTap", "Hold", "Off" };
+	return ids[value];
+}
+
+const char *ps_mode_label(int value){
+	static const char *labels[PS_MODES_NUM] = {
+		"Send to PC, double-tap for the LiveArea",
+		"Send to PC, hold for the LiveArea",
+		"Normal",
+	};
+	return labels[value];
 }

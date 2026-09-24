@@ -31,7 +31,13 @@ The mapping is saved on the Vita (`ux0:data/VitaPad/remap.txt`), so it works wit
 
 ### PS button
 
-The PS button is sent to the PC too (the DualShock 4 PS button in ViGEm mode). **Double-tap** it to go back to the LiveArea like the normal PS button; holding it still opens the quick menu. You can turn this off from the remapping menu ("PS button" row). The first time VitaPad starts it loads its kernel module and restarts itself once.
+The PS button is sent to the PC too (the DualShock 4 PS button in ViGEm mode). The "PS button" row of the remapping menu picks how you get back to the LiveArea:
+
+- **Send to PC, double-tap for the LiveArea** (default)
+- **Send to PC, hold for the LiveArea** (about 0.8 seconds)
+- **Normal**: the PS button isn't sent to the PC and works as usual
+
+While the PS button is sent to the PC the quick menu is locked too, so an accidental hold doesn't open it. The first time VitaPad starts it loads its kernel module and restarts itself once.
 
 In vJoy mode the PS button is button 11 (needs a vJoy device with 11 or more buttons); in keyboard mode it presses `KEY_PS` (unmapped by default).
 
