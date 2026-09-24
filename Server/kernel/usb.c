@@ -56,6 +56,8 @@ static unsigned char report_descriptor[] = {
 	0x81, 0x42,       //   Input (Data, Var, Abs, Null State)
 	0x65, 0x00,       //   Unit (None)
 	0x81, 0x03,       //   Input (Const): padding to 8 bits
+	0x35, 0x00,       //   Physical Minimum (0): reset the hat's physical range for the axes
+	0x46, 0xFF, 0x00, //   Physical Maximum (255)
 	0x09, 0x30,       //   Usage (X): left stick
 	0x09, 0x31,       //   Usage (Y)
 	0x09, 0x32,       //   Usage (Z): right stick
@@ -130,6 +132,10 @@ static SceUdcdDeviceDescriptor device_full = {
 static SceUdcdStringDescriptor string_product = {
 	2 + 7 * 2, USB_DT_STRING, { 'V', 'i', 't', 'a', 'P', 'a', 'd' }
 };
+// String 0 lists the supported languages: US English
+static SceUdcdStringDescriptor string_languages = {
+	4, USB_DT_STRING, { 0x0409 }
+};
 static SceUdcdStringDescriptor string_default = {
 	2 + 7 * 2, USB_DT_STRING, { 'V', 'i', 't', 'a', 'P', 'a', 'd' }
 };
@@ -194,8 +200,10 @@ static int process_request(int recipient, int arg, SceUdcdEP0DeviceRequest *req,
 
 	if (dir == USB_CTRLTYPE_DIR_DEVICE2HOST){
 		if (type == USB_CTRLTYPE_TYPE_STANDARD && req->bRequest == USB_REQ_GET_DESCRIPTOR){
-			if (rec == USB_CTRLTYPE_REC_DEVICE && descriptor == USB_DT_STRING)
+			if (rec == USB_CTRLTYPE_REC_DEVICE && descriptor == USB_DT_STRING){
+				if ((req->wValue & 0xFF) == 0) return send_control(&string_languages, string_languages.bLength, req->wLength);
 				return send_control(&string_product, string_product.bLength, req->wLength);
+			}
 			if (rec == USB_CTRLTYPE_REC_INTERFACE && descriptor == HID_DESCRIPTOR_REPORT)
 				return send_control(report_descriptor, sizeof(report_descriptor), req->wLength);
 			if (rec == USB_CTRLTYPE_REC_INTERFACE && descriptor == HID_DESCRIPTOR_HID)
