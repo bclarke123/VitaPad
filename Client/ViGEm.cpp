@@ -112,13 +112,13 @@ static void setTouchpad(DS4_REPORT_EX *report, const PadPacketV2 *packet, const 
     report->Report.sCurrentTouch = touch;
 }
 
-static void setMotion(DS4_REPORT_EX *report, const PadPacketV2 *packet)
+static void setMotion(DS4_REPORT_EX *report, const PadPacketV2 *packet, float sensitivity)
 {
     // Vita axes: X right, Y towards the top of the screen, Z out of the screen.
     // DS4 axes: X right, Y out of the face, Z towards the player.
-    // The Vita reports gravity in G and rotation in revolutions per second,
+    // The Vita reports gravity in G and rotation in radians per second,
     // the DS4 reports the reaction to gravity and rotation in degrees per second.
-    const float gyro = 360.0f * DS4_GYRO_RES_PER_DEG_S;
+    const float gyro = 57.2957795f * DS4_GYRO_RES_PER_DEG_S * sensitivity;
     report->Report.wGyroX = toShort(packet->gyro[0] * gyro);
     report->Report.wGyroY = toShort(packet->gyro[2] * gyro);
     report->Report.wGyroZ = toShort(-packet->gyro[1] * gyro);
@@ -218,7 +218,7 @@ bool vgSubmit(const PadPacketV2 *packet, const VigemOptions *options)
         report.Report.wTimestamp = (USHORT)(((uint64_t)packet->timestamp * 3 / 16) & 0xFFFF);
         report.Report.bBatteryLvl = packet->battery * 0xFF / 100;
         report.Report.bBatteryLvlSpecial = packet->battery / 10;
-        if (options->motion) setMotion(&report, packet);
+        if (options->motion) setMotion(&report, packet, options->gyro_sensitivity);
         setTouchpad(&report, packet, options);
 
         VIGEM_ERROR err = vigem_target_ds4_update_ex(client, target, report);
