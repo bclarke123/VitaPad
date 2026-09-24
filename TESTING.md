@@ -78,6 +78,19 @@ Run `VitaPad --viewer` (add `--monitor` to skip controller emulation). The brows
 | 1c.7 | With Unsafe Homebrew off | VitaPad still starts; main screen says to enable Unsafe Homebrew, PS works normally |
 | 1c.8 | In ViGEm mode, tap PS | The controller tester shows the PS button; Steam may open its overlay |
 
+## 1d. USB mode (real Vita + computer, no PC client)
+
+| # | Do | Expect |
+|---|----|--------|
+| 1d.1 | Remap menu: Connection → USB, START; plug the Vita into a computer | Main screen: "USB mode: connected"; the computer shows a new game controller named VitaPad (Windows: "Set up USB game controllers"; macOS: System Information → USB; Linux: `jstest` / `evtest`) |
+| 1d.2 | Open https://hardwaretester.com/gamepad and press everything | 14 buttons in DualShock 4 order, D-pad as a hat/POV, both sticks; front touch corners = L1/R1/L3/R3 |
+| 1d.3 | Remap a button, tap PS | Remap and PS button apply over USB too |
+| 1d.4 | Open the remap menu while connected | The gamepad goes neutral |
+| 1d.5 | Double-tap PS to go to the LiveArea, wait 3 s | Controller disappears from the computer; USB file transfer (e.g. VitaShell USB) works again |
+| 1d.6 | Reopen VitaPad | Controller comes back within a second or two |
+| 1d.7 | Connection → Wi-Fi | Controller disappears; the PC client works as before |
+| 1d.8 | Try it in Steam and a game | Steam lists the controller (may ask to map it once); inputs reach the game |
+
 ## 3. Controller output (Windows, fake Vita or real Vita)
 
 Set `VIGEM_MODE` to 1 in `windows.xml`, run `VitaPad` (without `--monitor`) and open a controller tester: Steam > Settings > Controller > Test Device Inputs, DS4Windows, or https://hardwaretester.com/gamepad.

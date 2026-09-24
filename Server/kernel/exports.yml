@@ -11,3 +11,7 @@ VitaPadKernel:
       syscall: true
       functions:
         - vitapadKernelGetButtons
+        - vitapadKernelUsbStart
+        - vitapadKernelUsbStop
+        - vitapadKernelUsbSetReport
+        - vitapadKernelUsbGetState
