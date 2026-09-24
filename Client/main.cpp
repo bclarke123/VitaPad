@@ -890,11 +890,72 @@ static void processKeyboard(const PadPacket& data, const PadPacket& olddata)
 	else if ((olddata.click & RIGHT_CLICK) && (!(data.click & RIGHT_CLICK))) SEND_MOUSE_EVENT(MOUSE_RIGHT_UP);
 }
 
+// Monitor mode: print what the Vita sends instead of emulating any input
+bool MONITOR_MODE = false;
+
+static uint64_t nowMs()
+{
+	#ifdef __WIN32__
+	return GetTickCount64();
+	#else
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return (uint64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+	#endif
+}
+
+static void printTouches(const char* name, const TouchPoint* points, int num)
+{
+	printf(" %s:", name);
+	if (num == 0) printf(" -          ");
+	for (int i = 0; i < num; i++) printf(" (%4d,%4d)", points[i].x, points[i].y);
+}
+
+static void printMonitor(const PadPacketV2& packet)
+{
+	static const struct { uint32_t mask; const char* name; } names[] = {
+		{ SCE_CTRL_UP, "UP" }, { SCE_CTRL_DOWN, "DOWN" }, { SCE_CTRL_LEFT, "LEFT" }, { SCE_CTRL_RIGHT, "RIGHT" },
+		{ SCE_CTRL_CROSS, "CROSS" }, { SCE_CTRL_CIRCLE, "CIRCLE" }, { SCE_CTRL_SQUARE, "SQUARE" }, { SCE_CTRL_TRIANGLE, "TRIANGLE" },
+		{ SCE_CTRL_LTRIGGER, "L" }, { SCE_CTRL_RTRIGGER, "R" }, { SCE_CTRL_START, "START" }, { SCE_CTRL_SELECT, "SELECT" },
+	};
+	static uint64_t last = 0;
+	static int packets = 0;
+	static int rate = 0;
+	static uint64_t rate_start = 0;
+	uint64_t now = nowMs();
+	packets++;
+	if (now - rate_start >= 1000)
+	{
+		rate = packets;
+		packets = 0;
+		rate_start = now;
+	}
+	if (now - last < 200) return;
+	last = now;
+
+	printf("[%4d pkt/s] bat %3d%% | L(%3d,%3d) R(%3d,%3d) |", rate, packet.battery, packet.lx, packet.ly, packet.rx, packet.ry);
+	printTouches("front", packet.front, packet.front_num);
+	printTouches("rear", packet.rear, packet.rear_num);
+	printf(" | accel(%5.2f,%5.2f,%5.2f)G gyro(%7.1f,%7.1f,%7.1f)deg/s |",
+		packet.accel[0], packet.accel[1], packet.accel[2],
+		packet.gyro[0] * 360.0f, packet.gyro[1] * 360.0f, packet.gyro[2] * 360.0f);
+	for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++)
+		if (packet.buttons & names[i].mask) printf(" %s", names[i].name);
+	printf("\n");
+	fflush(stdout);
+}
+
 // Feeds a packet to the active emulation mode, returns false on unrecoverable errors
 static bool processPacket(const PadPacketV2& packet)
 {
 	static PadPacket olddata;
 	static bool firstScan = true;
+	if (MONITOR_MODE)
+	{
+		printMonitor(packet);
+		return true;
+	}
+	
 	PadPacket data;
 	toLegacyPacket(packet, data);
 	if (firstScan)
@@ -1005,10 +1066,21 @@ int main(int argc,char** argv){
 	WSAStartup(versionWanted, &wsaData);
 	#endif
 
+	// Usage: VitaPad [--monitor] [Vita IP]
+	const char* ip_arg = NULL;
+	for (int i = 1; i < argc; i++)
+	{
+		if (strcmp(argv[i], "--monitor") == 0) MONITOR_MODE = true;
+		else ip_arg = argv[i];
+	}
+
     #ifdef __linux__
-    display = XOpenDisplay(0);
-    if (display == NULL)
-        exit(1);
+    if (!MONITOR_MODE)
+    {
+        display = XOpenDisplay(0);
+        if (display == NULL)
+            exit(1);
+    }
     #endif
 
 	// Loading mapping
@@ -1017,6 +1089,14 @@ int main(int argc,char** argv){
 	life_tick = getLastModifiedTime(CONFIG_FILE);
 
 	printf("VitaPad Client by Rinnegatamante\n\n");
+	if (MONITOR_MODE)
+	{
+		printf("MONITOR MODE: printing what the Vita sends, no input is emulated.\n\n");
+		#ifdef __WIN32__
+		VJOY_MODE = false;
+		VIGEM_MODE = VIGEM_DEVICE_NONE;
+		#endif
+	}
 	#ifdef __WIN32__
 	if (VJOY_MODE && (VIGEM_MODE != VIGEM_DEVICE_NONE))
 	{
@@ -1040,7 +1120,7 @@ int main(int argc,char** argv){
 
 	// The Vita IP comes from the command line, or the last Vita we connected to, or automatic discovery
 	char host[64] = "";
-	if (argc > 1) snprintf(host, sizeof(host), "%s", argv[1]);
+	if (ip_arg) snprintf(host, sizeof(host), "%s", ip_arg);
 	else if (loadSavedIp(host, sizeof(host))) printf("Using last Vita IP: %s (delete %s to forget it)\n", host, SAVED_IP_FILE);
 
 	bool wasConnected = false;
@@ -1098,7 +1178,7 @@ int main(int argc,char** argv){
 	}
 
     #ifdef __linux__
-    XCloseDisplay(display);
+    if (display) XCloseDisplay(display);
     #elif defined(__WIN32__)
     ControllerCleanup();
     #endif

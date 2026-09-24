@@ -15,6 +15,8 @@ If the connection drops (e.g. Wi-Fi hiccups or the Vita goes to sleep), the PC c
 
 To avoid screen burn-in during long sessions, hold L + R + SELECT for 1 second on the Vita to turn the screen off (black). Do it again to turn it back on.
 
+Run `VitaPad --monitor` to see everything the Vita sends without emulating any input. See [TESTING.md](TESTING.md) for a full test checklist.
+
 The PC client and the Vita app must be updated together: the new client will tell you if the Vita app is outdated.
 
 ## Controls Mapping
