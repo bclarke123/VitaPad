@@ -40,10 +40,10 @@ vJoyInterface.dll: $(VJOY_LIB_PATH)/vJoyInterface.dll
 
 windows: ViGEmClient.o tinyxml2.o icon.res vJoyInterface.dll
 	g++ -static -static-libgcc -static-libstdc++ \
-		-I VJoySDK/inc -I ViGEmClient/include \
+		-I VJoySDK/inc -I ViGEmClient/include -I ../Common \
 		-o VitaPad \
 		main.cpp ViGEm.cpp ViGEmClient.o tinyxml2.o icon.res \
 		 $(VJOY_LIB_PATH)/vJoyInterface.lib -lpthread -lws2_32 -lsetupapi
 
 linux: tinyxml2.o
-	g++ -static-libgcc -static-libstdc++ -o VitaPad main.cpp tinyxml2.o -lX11 -lXtst
+	g++ -static-libgcc -static-libstdc++ -I ../Common -o VitaPad main.cpp tinyxml2.o -lX11 -lXtst
