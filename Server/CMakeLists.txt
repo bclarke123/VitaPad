@@ -59,4 +59,9 @@ vita_create_vpk(VitaPad.vpk ${VITA_TITLEID} eboot.bin
   FILE build/sce_sys/livearea/contents/template.xml sce_sys/livearea/contents/template.xml
   FILE ${CMAKE_CURRENT_BINARY_DIR}/vitapad_kernel.skprx module/vitapad_kernel.skprx
 )
-add_dependencies(VitaPad.vpk vitapad_kernel.skprx)
+# The kernel module must be built before it's packed (target names differ before/after CMake 3.20)
+if(TARGET VitaPad.vpk-vpk)
+  add_dependencies(VitaPad.vpk-vpk vitapad_kernel.skprx-self)
+else()
+  add_dependencies(VitaPad.vpk vitapad_kernel.skprx)
+endif()
