@@ -64,6 +64,20 @@ Run `VitaPad --viewer` (add `--monitor` to skip controller emulation). The brows
 | 1b.5 | Open the menu, press Triangle, then START | Everything back to normal, "0 remapped" |
 | 1b.6 | In ViGEm mode, map a button to L1/R1/L3/R3 | The controller tester shows that DS4 button |
 
+## 1c. PS button (real Vita + `--monitor`)
+
+| # | Do | Expect |
+|---|----|--------|
+| 1c.1 | With Unsafe Homebrew on, open VitaPad for the first time after installing | It blinks (restarts once), then the main screen says "PS button: sent to the PC" |
+| 1c.2 | Tap PS once | Monitor shows PS; the Vita stays in VitaPad (no LiveArea, no "blocked" icon) |
+| 1c.3 | Double-tap PS | Monitor shows two PS taps and the Vita goes to the LiveArea; reopening VitaPad reconnects and single taps are captured again |
+| 1c.4 | Hold PS for 2 s (double-tap mode) | Monitor shows PS held; no quick menu, no LiveArea |
+| 1c.4b | Remap menu: "Send to PC, hold for the LiveArea"; tap PS, double-tap PS, then hold it | Taps and double-taps only reach the PC; holding about 0.8 s goes to the LiveArea (monitor stops showing PS when it triggers) |
+| 1c.5 | Put the Vita to sleep and wake it, open VitaPad | Single taps are still captured (lock taken again after sleep) |
+| 1c.6 | Remap menu: set "PS button" to Normal, save | PS goes to the LiveArea on a single tap and holding opens the quick menu again; setting kept after restarting VitaPad |
+| 1c.7 | With Unsafe Homebrew off | VitaPad still starts; main screen says to enable Unsafe Homebrew, PS works normally |
+| 1c.8 | In ViGEm mode, tap PS | The controller tester shows the PS button; Steam may open its overlay |
+
 ## 3. Controller output (Windows, fake Vita or real Vita)
 
 Set `VIGEM_MODE` to 1 in `windows.xml`, run `VitaPad` (without `--monitor`) and open a controller tester: Steam > Settings > Controller > Test Device Inputs, DS4Windows, or https://hardwaretester.com/gamepad.
@@ -72,7 +86,7 @@ With the fake Vita the sequence repeats, so compare against this:
 
 | # | Expect |
 |---|--------|
-| 3.1 | Each face button, d-pad direction, Share (SELECT), Options (START), L2 (L), R2 (R), then L1, R1, L3, R3 lights up in turn |
+| 3.1 | Each face button, d-pad direction, Share (SELECT), Options (START), L2 (L), R2 (R), then L1, R1, L3, R3 and PS lights up in turn |
 | 3.2 | The front touch visits the corners: L1, R1, L3, R3 |
 | 3.3 | Rear touch slides across the DS4 touchpad (Steam's tester shows it) |
 | 3.4 | Motion: the controller rocks left/right (Steam's gyro view) |

@@ -4,6 +4,7 @@
 #include <psp2/io/stat.h>
 
 #include "remap.h"
+#include "psbutton.h"
 
 #define REMAP_DIR "ux0:data/VitaPad"
 #define REMAP_FILE REMAP_DIR "/remap.txt"
@@ -31,6 +32,10 @@ static const Button targets[] = {
 };
 #define TARGETS_NUM (sizeof(targets) / sizeof(targets[0]))
 
+// The menu has one row per source plus the PS button setting
+#define ROWS_NUM (SOURCES_NUM + 1)
+#define PS_ROW SOURCES_NUM
+
 volatile int remap_menu_open = 0;
 
 // mapping[source] = target index. The first SOURCES_NUM targets are the sources themselves, so identity is the default
@@ -42,6 +47,7 @@ static uint32_t old_buttons = 0;
 
 static void reset_mapping(void){
 	for (int i = 0; i < (int)SOURCES_NUM; i++) mapping[i] = i;
+	ps_set_mode(PS_MODE_DOUBLE_TAP);
 }
 
 static int find(const Button *list, int num, const char *name){
@@ -64,6 +70,11 @@ void remap_load(void){
 		char *eq = strchr(line, '=');
 		if (eq == NULL) continue;
 		*eq = 0;
+		if (strcmp(line, "PSButton") == 0){
+			for (int m = 0; m < PS_MODES_NUM; m++)
+				if (strcmp(eq + 1, ps_mode_id(m)) == 0) ps_set_mode(m);
+			continue;
+		}
 		int src = find(sources, SOURCES_NUM, line);
 		int dst = find(targets, TARGETS_NUM, eq + 1);
 		if (src >= 0 && dst >= 0) mapping[src] = dst;
@@ -77,6 +88,7 @@ static void remap_save(void){
 	FILE *f = fopen(REMAP_FILE, "w");
 	if (f == NULL) return;
 	for (int i = 0; i < (int)SOURCES_NUM; i++) fprintf(f, "%s=%s\n", sources[i].name, targets[mapping[i]].name);
+	fprintf(f, "PSButton=%s\n", ps_mode_id(ps_mode()));
 	fclose(f);
 }
 
@@ -106,10 +118,17 @@ int remap_menu_update(uint32_t buttons){
 	uint32_t pressed = buttons & ~old_buttons;
 	old_buttons = buttons;
 
-	if (pressed & SCE_CTRL_UP) selected = (selected + SOURCES_NUM - 1) % SOURCES_NUM;
-	if (pressed & SCE_CTRL_DOWN) selected = (selected + 1) % SOURCES_NUM;
-	if (pressed & SCE_CTRL_LEFT) mapping[selected] = (mapping[selected] + TARGETS_NUM - 1) % TARGETS_NUM;
-	if (pressed & SCE_CTRL_RIGHT) mapping[selected] = (mapping[selected] + 1) % TARGETS_NUM;
+	if (pressed & SCE_CTRL_UP) selected = (selected + ROWS_NUM - 1) % ROWS_NUM;
+	if (pressed & SCE_CTRL_DOWN) selected = (selected + 1) % ROWS_NUM;
+	if (selected == PS_ROW){
+		if (ps_available()){
+			if (pressed & SCE_CTRL_LEFT) ps_set_mode((ps_mode() + PS_MODES_NUM - 1) % PS_MODES_NUM);
+			if (pressed & SCE_CTRL_RIGHT) ps_set_mode((ps_mode() + 1) % PS_MODES_NUM);
+		}
+	}else{
+		if (pressed & SCE_CTRL_LEFT) mapping[selected] = (mapping[selected] + TARGETS_NUM - 1) % TARGETS_NUM;
+		if (pressed & SCE_CTRL_RIGHT) mapping[selected] = (mapping[selected] + 1) % TARGETS_NUM;
+	}
 	if (pressed & SCE_CTRL_TRIANGLE) reset_mapping();
 	if (pressed & SCE_CTRL_START){
 		remap_save();
@@ -138,4 +157,13 @@ void remap_menu_draw(vita2d_pgf *font){
 		if (i == selected) vita2d_pgf_draw_textf(font, 260, y, accent, 1.0, "<  %s  >", target);
 		else vita2d_pgf_draw_text(font, 260, y, mapping[i] != i ? changed : white, 1.0, target);
 	}
+
+	int y = 124 + PS_ROW * 32;
+	int available = ps_available();
+	const char *value = available ? ps_mode_label(ps_mode()) : "Unavailable: enable Unsafe Homebrew in HENkaku settings";
+	if (selected == PS_ROW) vita2d_draw_rectangle(12, y - 22, 936, 30, RGBA8(0x2B, 0x30, 0x40, 0xFF));
+	vita2d_pgf_draw_text(font, 30, y, selected == PS_ROW ? accent : white, 1.0, "PS button");
+	vita2d_pgf_draw_text(font, 200, y, dim, 1.0, "->");
+	if (selected == PS_ROW && available) vita2d_pgf_draw_textf(font, 260, y, accent, 1.0, "<  %s  >", value);
+	else vita2d_pgf_draw_text(font, 260, y, available ? white : dim, 1.0, value);
 }

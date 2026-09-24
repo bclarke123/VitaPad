@@ -5,7 +5,7 @@ It answers discovery and serves animated input that cycles through every
 feature, so the client (or a controller tester fed by ViGEm) always sees the
 same sequence:
 
-  - each button is held for 0.5 s in turn, then L1/R1/L3/R3 (as sent by remapped buttons)
+  - each button is held for 0.5 s in turn, then L1/R1/L3/R3 (as sent by remapped buttons) and PS
   - both sticks move in circles
   - one finger visits the four front touch corners (L1, R1, L3, R3 in ViGEm mode)
   - a finger slides across the rear panel (DS4 touchpad)
@@ -32,6 +32,8 @@ BUTTONS = [
     ("TRIANGLE", 0x1000), ("CIRCLE", 0x2000), ("CROSS", 0x4000), ("SQUARE", 0x8000),
     # Not on a Vita: what buttons remapped to L1/R1/L3/R3 send
     ("L1", 0x0400), ("R1", 0x0800), ("L3", 0x0002), ("R3", 0x0004),
+    # Sent when the Vita app captures the PS button
+    ("PS", 0x10000),
 ]
 CORNERS = [(300, 200), (1600, 200), (300, 900), (1600, 900)]  # L1, R1, L3, R3
 

@@ -85,3 +85,6 @@ Client/vJoyInterface.dll
 
 # Remembered Vita IP
 Client/vita_ip.txt
+
+# Vita app CMake build
+Server/out/
