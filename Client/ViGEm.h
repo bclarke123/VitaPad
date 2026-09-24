@@ -4,10 +4,10 @@
 
 #include "main.h"
 
-enum {
+enum VIGEM_DEVICE {
     VIGEM_DEVICE_NONE   = 0,
     VIGEM_DEVICE_DS4    = 1,
-} VIGEM_DEVICE;
+};
 
 // What a Vita touch panel does on the emulated DualShock 4
 enum {
