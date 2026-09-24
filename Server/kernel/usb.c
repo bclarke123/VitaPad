@@ -91,19 +91,24 @@ static SceUdcdInterface interfaces[1] = {
 	{ -1, 0, 1 },
 };
 
+// The descriptor arrays end with an empty entry: SceUdcd walks them until it finds one.
 // bInterval: high speed counts 2^(n-1) microframes of 125 us (4 = 1 ms), full speed counts ms
-static SceUdcdEndpointDescriptor endpoint_hi[1] = {
+static SceUdcdEndpointDescriptor endpoint_hi[2] = {
 	{ USB_DT_ENDPOINT_SIZE, USB_DT_ENDPOINT, USB_ENDPOINT_IN | 0x01, USB_ENDPOINT_TYPE_INTERRUPT, 64, 4, NULL, 0 },
+	{ 0 },
 };
-static SceUdcdEndpointDescriptor endpoint_full[1] = {
+static SceUdcdEndpointDescriptor endpoint_full[2] = {
 	{ USB_DT_ENDPOINT_SIZE, USB_DT_ENDPOINT, USB_ENDPOINT_IN | 0x01, USB_ENDPOINT_TYPE_INTERRUPT, 64, 1, NULL, 0 },
+	{ 0 },
 };
 
-static SceUdcdInterfaceDescriptor interface_hi[1] = {
+static SceUdcdInterfaceDescriptor interface_hi[2] = {
 	{ USB_DT_INTERFACE_SIZE, USB_DT_INTERFACE, 0, 0, 1, USB_CLASS_HID, 0, 0, 0, endpoint_hi, hid_descriptor, sizeof(hid_descriptor) },
+	{ 0 },
 };
-static SceUdcdInterfaceDescriptor interface_full[1] = {
+static SceUdcdInterfaceDescriptor interface_full[2] = {
 	{ USB_DT_INTERFACE_SIZE, USB_DT_INTERFACE, 0, 0, 1, USB_CLASS_HID, 0, 0, 0, endpoint_full, hid_descriptor, sizeof(hid_descriptor) },
+	{ 0 },
 };
 
 static SceUdcdInterfaceSettings settings_hi[1] = { { interface_hi, 0, 1 } };
