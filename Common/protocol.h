@@ -61,7 +61,7 @@ typedef struct {
 	TouchPoint front[2];
 	TouchPoint rear[2];
 	float accel[3];     // Vita accelerometer (gravity vector, in G)
-	float gyro[3];      // Vita gyroscope (revolutions per second)
+	float gyro[3];      // Vita gyroscope (radians per second)
 	uint32_t timestamp; // Microseconds
 	uint8_t battery;    // Vita battery percentage
 	uint8_t reserved2[3];

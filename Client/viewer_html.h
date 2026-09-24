@@ -284,7 +284,7 @@ function fuse(accel, gyro, t) {
   lastT = t;
   if (dt <= 0 || dt > 0.25) return;
   samples++;
-  const w = new THREE.Vector3(...gyro).multiplyScalar(2 * Math.PI); // revolutions/s -> rad/s
+  const w = new THREE.Vector3(...gyro); // rad/s
   const up = new THREE.Vector3(-accel[0], -accel[1], -accel[2]); // the Vita reports gravity, we want "up"
   const n = up.length();
   if (n > 0.6 && n < 1.4) {
@@ -341,7 +341,7 @@ function onState(s) {
   $('lstick').textContent = s.lx + ', ' + s.ly;
   $('rstick').textContent = s.rx + ', ' + s.ry;
   $('accel').textContent = fmt(s.accel, 2);
-  $('gyro').textContent = fmt(s.gyro.map(g => g * 360), 0);
+  $('gyro').textContent = fmt(s.gyro.map(g => g * 180 / Math.PI), 0);
   $('ftouch').textContent = s.front.map(p => p.join(',')).join('  ') || '-';
   $('rtouch').textContent = s.rear.map(p => p.join(',')).join('  ') || '-';
   $('pressed').innerHTML = BUTTON_NAMES.filter(([m]) => s.buttons & m).map(([, n]) => '<b>' + n + '</b>').join('');

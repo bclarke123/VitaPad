@@ -10,6 +10,8 @@
 <VIGEM_EXTENDED>1</VIGEM_EXTENDED>
 <!-- ViGEm: send the Vita gyroscope and accelerometer as DS4 motion -->
 <VIGEM_MOTION>1</VIGEM_MOTION>
+<!-- ViGEm: gyroscope multiplier, 1.0 = real rotation speed. Lower it (e.g. 0.5) for a gentler gyro, raise it for a faster one -->
+<VIGEM_GYRO_SENSITIVITY>1.0</VIGEM_GYRO_SENSITIVITY>
 <VJOY_MODE>0</VJOY_MODE>
 <VJOY_ALTERNATE>0</VJOY_ALTERNATE>
 <KEY_DOWN>0x1F</KEY_DOWN>

@@ -57,6 +57,7 @@ ViGEm options in windows.xml:
 - `VIGEM_SWAP_SHOULDERS`: 1 = Vita L/R act as L1/R1 and the upper touch corners as L2/R2 (like PS4 Remote Play when used with `VIGEM_REAR_TOUCH` set to 1)
 - `VIGEM_EXTENDED`: 1 = send touchpad and motion data (needs ViGEmBus 1.17+)
 - `VIGEM_MOTION`: 1 = send gyroscope and accelerometer data
+- `VIGEM_GYRO_SENSITIVITY`: gyroscope multiplier, 1.0 = real rotation speed (e.g. 0.5 for half as sensitive). Applies live when you save the file
 
 Default vJoy mapping for the front touchscreen: upper corners = LB/RB (buttons 5/6), lower corners = L3/R3 (buttons 9/10, only if the vJoy device has 10 or more buttons, otherwise the whole left/right halves are LB/RB).
 

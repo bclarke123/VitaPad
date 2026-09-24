@@ -101,7 +101,7 @@ int VJOY_BUTTONS = 0;
 
 #include "ViGEm.h"
 unsigned int VIGEM_MODE = VIGEM_DEVICE_NONE;
-VigemOptions VIGEM_OPTIONS = { VIGEM_TOUCH_BUTTONS, VIGEM_TOUCH_TOUCHPAD, false, true, true };
+VigemOptions VIGEM_OPTIONS = { VIGEM_TOUCH_BUTTONS, VIGEM_TOUCH_TOUCHPAD, false, true, true, 1.0f };
 
 enum {
 	VJOY_CTRL_SELECT     = 1 << 6,	//!< Select button.
@@ -204,6 +204,14 @@ static unsigned int readUnsigned(tinyxml2::XMLDocument& doc, const char* name, u
 	if (NULL != k1 && tinyxml2::XML_NO_ERROR == k1->QueryUnsignedText(&tmp_int)) return tmp_int;
 	return value;
 }
+
+static float readFloat(tinyxml2::XMLDocument& doc, const char* name, float value)
+{
+	tinyxml2::XMLElement* k1 = doc.FirstChildElement(name);
+	float tmp_float;
+	if (NULL != k1 && tinyxml2::XML_NO_ERROR == k1->QueryFloatText(&tmp_float)) return tmp_float;
+	return value;
+}
 #endif
 
 void loadConfig(const char* path)
@@ -248,6 +256,7 @@ void loadConfig(const char* path)
 	VIGEM_OPTIONS.swap_shoulders = readBool(doc, "VIGEM_SWAP_SHOULDERS", VIGEM_OPTIONS.swap_shoulders);
 	VIGEM_OPTIONS.extended = readBool(doc, "VIGEM_EXTENDED", VIGEM_OPTIONS.extended);
 	VIGEM_OPTIONS.motion = readBool(doc, "VIGEM_MOTION", VIGEM_OPTIONS.motion);
+	VIGEM_OPTIONS.gyro_sensitivity = readFloat(doc, "VIGEM_GYRO_SENSITIVITY", VIGEM_OPTIONS.gyro_sensitivity);
 #endif
 
 }
@@ -892,6 +901,8 @@ static void processKeyboard(const PadPacket& data, const PadPacket& olddata)
 	else if ((olddata.click & RIGHT_CLICK) && (!(data.click & RIGHT_CLICK))) SEND_MOUSE_EVENT(MOUSE_RIGHT_UP);
 }
 
+#define RAD_TO_DEG 57.2957795f
+
 // Monitor mode: print what the Vita sends instead of emulating any input
 bool MONITOR_MODE = false;
 
@@ -943,7 +954,7 @@ static void printMonitor(const PadPacketV2& packet)
 	printTouches("rear", packet.rear, packet.rear_num);
 	printf(" | accel(%5.2f,%5.2f,%5.2f)G gyro(%7.1f,%7.1f,%7.1f)deg/s |",
 		packet.accel[0], packet.accel[1], packet.accel[2],
-		packet.gyro[0] * 360.0f, packet.gyro[1] * 360.0f, packet.gyro[2] * 360.0f);
+		packet.gyro[0] * RAD_TO_DEG, packet.gyro[1] * RAD_TO_DEG, packet.gyro[2] * RAD_TO_DEG);
 	for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++)
 		if (packet.buttons & names[i].mask) printf(" %s", names[i].name);
 	printf("\n");

@@ -23,6 +23,7 @@ typedef struct {
     bool swap_shoulders;       // Vita L/R = L1/R1 and upper touch corners = L2/R2
     bool extended;             // Use extended reports (touchpad and motion, needs ViGEmBus 1.17+)
     bool motion;               // Send gyroscope and accelerometer data
+    float gyro_sensitivity;    // Gyroscope multiplier, 1.0 = real rotation speed
 } VigemOptions;
 
 void vgDestroy();

@@ -42,10 +42,10 @@ def state(t):
     ry = int(128 + 127 * math.sin(-t * 2))
     front = [CORNERS[int(t) % 4]] if int(t * 2) % 2 == 0 else []
     rear = [(int((t % 2) / 2 * 1919), 544)] if int(t / 2) % 2 == 0 else []
-    # Rocking +-30 degrees around the Y axis: gravity (in G) and angular velocity (revolutions/s)
+    # Rocking +-30 degrees around the Y axis: gravity (in G) and angular velocity (radians/s)
     angle = math.radians(30) * math.sin(t)
     accel = (-math.sin(angle), 0.0, -math.cos(angle))
-    gyro = (0.0, math.radians(30) * math.cos(t) / (2 * math.pi), 0.0)
+    gyro = (0.0, math.radians(30) * math.cos(t), 0.0)
     return buttons, lx, ly, rx, ry, front, rear, accel, gyro
 
 
