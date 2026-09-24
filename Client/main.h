@@ -20,5 +20,10 @@ enum {
 	SCE_CTRL_TRIANGLE   = 0x001000,	//!< Triangle button.
 	SCE_CTRL_CIRCLE     = 0x002000,	//!< Circle button.
 	SCE_CTRL_CROSS      = 0x004000,	//!< Cross button.
-	SCE_CTRL_SQUARE     = 0x008000	//!< Square button.
+	SCE_CTRL_SQUARE     = 0x008000,	//!< Square button.
+	// Not on the Vita itself: sent by remapped buttons or by a PS TV controller
+	SCE_CTRL_L3         = 0x000002,	//!< L3 button.
+	SCE_CTRL_R3         = 0x000004,	//!< R3 button.
+	SCE_CTRL_L1         = 0x000400,	//!< L1 button.
+	SCE_CTRL_R1         = 0x000800	//!< R1 button.
 };

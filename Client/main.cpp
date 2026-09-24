@@ -72,6 +72,7 @@ typedef int sock_t;
 uint16_t KEY_DOWN, KEY_UP, KEY_LEFT, KEY_RIGHT, KEY_TRIANGLE, KEY_SQUARE, KEY_CROSS, KEY_CIRCLE;
 uint16_t KEY_L, KEY_R, KEY_START, KEY_SELECT, KEY_LANALOG_UP, KEY_LANALOG_DOWN, KEY_LANALOG_LEFT;
 uint16_t KEY_LANALOG_RIGHT, KEY_RANALOG_UP, KEY_RANALOG_DOWN, KEY_RANALOG_LEFT, KEY_RANALOG_RIGHT;
+uint16_t KEY_L1, KEY_R1, KEY_L3, KEY_R3; // Optional (0 = unmapped), for remapped buttons or a PS TV controller
 
 // Mouse
 #if defined(__WIN32__) || defined(__CYGWIN__)
@@ -188,6 +189,14 @@ static uint16_t readKey(tinyxml2::XMLDocument& doc, const char* name, uint16_t v
 	return strtoul(k1->GetText(), NULL, 16);
 }
 
+// Like readKey, for entries older config files don't have
+static uint16_t readOptionalKey(tinyxml2::XMLDocument& doc, const char* name, uint16_t value)
+{
+	tinyxml2::XMLElement* k1 = doc.FirstChildElement(name);
+	if (k1 == NULL || k1->GetText() == NULL) return value;
+	return strtoul(k1->GetText(), NULL, 16);
+}
+
 #ifdef __WIN32__
 static bool readBool(tinyxml2::XMLDocument& doc, const char* name, bool value)
 {
@@ -245,6 +254,10 @@ void loadConfig(const char* path)
 	KEY_RANALOG_DOWN = readKey(doc, "KEY_RANALOG_DOWN", KEY_RANALOG_DOWN);
 	KEY_RANALOG_LEFT = readKey(doc, "KEY_RANALOG_LEFT", KEY_RANALOG_LEFT);
 	KEY_RANALOG_RIGHT = readKey(doc, "KEY_RANALOG_RIGHT", KEY_RANALOG_RIGHT);
+	KEY_L1 = readOptionalKey(doc, "KEY_L1", KEY_L1);
+	KEY_R1 = readOptionalKey(doc, "KEY_R1", KEY_R1);
+	KEY_L3 = readOptionalKey(doc, "KEY_L3", KEY_L3);
+	KEY_R3 = readOptionalKey(doc, "KEY_R3", KEY_R3);
 
 #ifdef __WIN32__
 	if (readBool(doc, "VJOY_MODE", false)) VJOY_MODE = true;
@@ -775,6 +788,11 @@ static void processVjoy(const PadPacket& data)
 	{
 		buttons = buttons | VJOY_CTRL_SELECT;
 	}
+	// Buttons the Vita lacks, sent by remapped buttons or by a PS TV controller
+	if (data.buttons & SCE_CTRL_L1) buttons = buttons | VJOY_CTRL_LBUMPER;
+	if (data.buttons & SCE_CTRL_R1) buttons = buttons | VJOY_CTRL_RBUMPER;
+	if (VJOY_BUTTONS >= 10 && (data.buttons & SCE_CTRL_L3)) buttons = buttons | VJOY_CTRL_L3;
+	if (VJOY_BUTTONS >= 10 && (data.buttons & SCE_CTRL_R3)) buttons = buttons | VJOY_CTRL_R3;
 	if (VJOY_ALTERNATE)
 	{
 		if (data.rx < 70)
@@ -873,6 +891,17 @@ static void processKeyboard(const PadPacket& data, const PadPacket& olddata)
 	if ((data.buttons & SCE_CTRL_SELECT) && (!(olddata.buttons & SCE_CTRL_SELECT))) SEND_BUTTON_PRESS(KEY_SELECT);
 	else if ((olddata.buttons & SCE_CTRL_SELECT) && (!(data.buttons & SCE_CTRL_SELECT))) SEND_BUTTON_RELEASE(KEY_SELECT);
 
+	// Buttons the Vita lacks (remapped buttons or a PS TV controller), only if a key is set
+	static const struct { uint32_t mask; uint16_t* key; } extra[] = {
+		{ SCE_CTRL_L1, &KEY_L1 }, { SCE_CTRL_R1, &KEY_R1 }, { SCE_CTRL_L3, &KEY_L3 }, { SCE_CTRL_R3, &KEY_R3 },
+	};
+	for (size_t i = 0; i < sizeof(extra) / sizeof(extra[0]); i++)
+	{
+		if (*extra[i].key == 0) continue;
+		if ((data.buttons & extra[i].mask) && !(olddata.buttons & extra[i].mask)) SEND_BUTTON_PRESS(*extra[i].key);
+		else if ((olddata.buttons & extra[i].mask) && !(data.buttons & extra[i].mask)) SEND_BUTTON_RELEASE(*extra[i].key);
+	}
+
 	// Left Analog
 	if ((data.ly < 50) && (!(olddata.ly < 50))) SEND_BUTTON_PRESS(KEY_LANALOG_UP);
 	else if ((olddata.ly < 50) && (!(data.ly < 50))) SEND_BUTTON_RELEASE(KEY_LANALOG_UP);
@@ -933,6 +962,7 @@ static void printMonitor(const PadPacketV2& packet)
 		{ SCE_CTRL_UP, "UP" }, { SCE_CTRL_DOWN, "DOWN" }, { SCE_CTRL_LEFT, "LEFT" }, { SCE_CTRL_RIGHT, "RIGHT" },
 		{ SCE_CTRL_CROSS, "CROSS" }, { SCE_CTRL_CIRCLE, "CIRCLE" }, { SCE_CTRL_SQUARE, "SQUARE" }, { SCE_CTRL_TRIANGLE, "TRIANGLE" },
 		{ SCE_CTRL_LTRIGGER, "L" }, { SCE_CTRL_RTRIGGER, "R" }, { SCE_CTRL_START, "START" }, { SCE_CTRL_SELECT, "SELECT" },
+		{ SCE_CTRL_L1, "L1" }, { SCE_CTRL_R1, "R1" }, { SCE_CTRL_L3, "L3" }, { SCE_CTRL_R3, "R3" },
 	};
 	static uint64_t last = 0;
 	static int packets = 0;
@@ -1109,7 +1139,7 @@ int main(int argc,char** argv){
 	loadConfig(CONFIG_FILE);
 	life_tick = getLastModifiedTime(CONFIG_FILE);
 
-	printf("VitaPad Client v1.4 by Rinnegatamante\n\n");
+	printf("VitaPad Client v1.5 by Rinnegatamante\n\n");
 	if (MONITOR_MODE)
 	{
 		printf("MONITOR MODE: printing what the Vita sends, no input is emulated.\n\n");

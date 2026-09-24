@@ -324,7 +324,8 @@ addEventListener('resize', () => {
 });
 
 const BUTTON_NAMES = [[0x0010, 'UP'], [0x0040, 'DOWN'], [0x0080, 'LEFT'], [0x0020, 'RIGHT'], [0x4000, 'CROSS'], [0x2000, 'CIRCLE'],
-  [0x8000, 'SQUARE'], [0x1000, 'TRIANGLE'], [0x0100, 'L'], [0x0200, 'R'], [0x0008, 'START'], [0x0001, 'SELECT']];
+  [0x8000, 'SQUARE'], [0x1000, 'TRIANGLE'], [0x0100, 'L'], [0x0200, 'R'], [0x0008, 'START'], [0x0001, 'SELECT'],
+  [0x0400, 'L1'], [0x0800, 'R1'], [0x0002, 'L3'], [0x0004, 'R3']];
 const fmt = (v, d) => v.map(x => x.toFixed(d).padStart(d + 4)).join(' ');
 
 let state = null;

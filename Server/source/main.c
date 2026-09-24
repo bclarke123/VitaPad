@@ -15,6 +15,7 @@
 #include <psp2/kernel/threadmgr.h>
 
 #include "protocol.h"
+#include "remap.h"
 
 #define NET_INIT_SIZE 1*1024*1024
 
@@ -24,6 +25,9 @@
 // Hold this combo to turn the screen off/on
 #define SCREEN_TOGGLE_COMBO (SCE_CTRL_LTRIGGER | SCE_CTRL_RTRIGGER | SCE_CTRL_SELECT)
 #define SCREEN_TOGGLE_FRAMES 60
+
+// Hold this combo to open/close the button remapping menu
+#define REMAP_MENU_COMBO (SCE_CTRL_LTRIGGER | SCE_CTRL_RTRIGGER | SCE_CTRL_START)
 
 volatile int connected = 0;
 volatile uint8_t battery = 100;
@@ -76,7 +80,14 @@ static void fill_packet(PadPacket *pkg){
 	sceCtrlPeekBufferPositive(0, &pad, 1);
 	sceTouchPeek(SCE_TOUCH_PORT_FRONT, &front, 1);
 	sceTouchPeek(SCE_TOUCH_PORT_BACK, &retro, 1);
+	// While the remap menu is open the PC gets a neutral pad
+	if (remap_menu_open){
+		memset(pkg, 0, sizeof(PadPacket));
+		pkg->lx = pkg->ly = pkg->rx = pkg->ry = 128;
+		return;
+	}
 	memcpy(pkg, &pad.buttons, 8); // Buttons + analogs state
+	pkg->buttons = remap_buttons(pad.buttons);
 	pkg->tx = front.report[0].x;
 	pkg->ty = front.report[0].y;
 	uint8_t flags = NO_INPUT;
@@ -96,7 +107,14 @@ static void fill_packet_v2(PadPacketV2 *pkg){
 	sceTouchPeek(SCE_TOUCH_PORT_FRONT, &front, 1);
 	sceTouchPeek(SCE_TOUCH_PORT_BACK, &retro, 1);
 	memset(pkg, 0, sizeof(PadPacketV2));
-	pkg->buttons = pad.buttons;
+	pkg->timestamp = (uint32_t)sceKernelGetProcessTimeWide();
+	pkg->battery = battery;
+	// While the remap menu is open the PC gets a neutral pad
+	if (remap_menu_open){
+		pkg->lx = pkg->ly = pkg->rx = pkg->ry = 128;
+		return;
+	}
+	pkg->buttons = remap_buttons(pad.buttons);
 	pkg->lx = pad.lx;
 	pkg->ly = pad.ly;
 	pkg->rx = pad.rx;
@@ -113,8 +131,6 @@ static void fill_packet_v2(PadPacketV2 *pkg){
 		pkg->gyro[1] = motion.gyro.y;
 		pkg->gyro[2] = motion.gyro.z;
 	}
-	pkg->timestamp = (uint32_t)sceKernelGetProcessTimeWide();
-	pkg->battery = battery;
 }
 
 static void handle_client(int client){
@@ -228,6 +244,7 @@ int main(){
 	sceTouchGetPanelInfo(SCE_TOUCH_PORT_FRONT, &panel_info[SCE_TOUCH_PORT_FRONT]);
 	sceTouchGetPanelInfo(SCE_TOUCH_PORT_BACK, &panel_info[SCE_TOUCH_PORT_BACK]);
 	sceMotionStartSampling();
+	remap_load();
 
 	// Initializing graphics stuffs
 	vita2d_init();
@@ -257,6 +274,7 @@ int main(){
 	int has_ip = 0;
 	int screen_off = 0;
 	int combo_frames = 0;
+	int menu_combo_frames = 0;
 	unsigned int frame = 0;
 	for (;;){
 
@@ -277,15 +295,31 @@ int main(){
 			if (++combo_frames == SCREEN_TOGGLE_FRAMES) screen_off = !screen_off;
 		}else combo_frames = 0;
 
+		// Remap menu toggle
+		if ((pad.buttons & REMAP_MENU_COMBO) == REMAP_MENU_COMBO){
+			if (++menu_combo_frames == SCREEN_TOGGLE_FRAMES){
+				if (remap_menu_open) remap_menu_open = 0;
+				else {
+					remap_menu_open_now();
+					screen_off = 0;
+				}
+			}
+		}else menu_combo_frames = 0;
+		if (remap_menu_open) remap_menu_update(pad.buttons);
+
 		vita2d_start_drawing();
 		vita2d_clear_screen();
+		if (remap_menu_open){
+			remap_menu_draw(debug_font);
+		}
 		// With the screen off we draw a plain black frame: OLED pixels are off, so no burn-in
-		if (!screen_off){
-			vita2d_pgf_draw_text(debug_font, 2, 20, text_color, 1.0, "VitaPad v.1.4 by Rinnegatamante");
+		else if (!screen_off){
+			vita2d_pgf_draw_text(debug_font, 2, 20, text_color, 1.0, "VitaPad v.1.5 by Rinnegatamante");
 			if (has_ip) vita2d_pgf_draw_textf(debug_font, 2, 60, text_color, 1.0, "Listening on:\nIP: %s\nPort: %d", vita_ip, GAMEPAD_PORT);
 			else vita2d_pgf_draw_text(debug_font, 2, 60, text_color, 1.0, "Waiting for Wi-Fi connection...");
 			vita2d_pgf_draw_textf(debug_font, 2, 200, text_color, 1.0, "Status: %s", connected ? "Connected!" : "Waiting connection...");
 			vita2d_pgf_draw_text(debug_font, 2, 240, text_color, 1.0, "Hold L + R + SELECT for 1 second to turn the screen off/on");
+			vita2d_pgf_draw_textf(debug_font, 2, 260, text_color, 1.0, "Hold L + R + START for 1 second to remap buttons (%d remapped)", remap_changed_count());
 			vita2d_pgf_draw_textf(debug_font, 2, 300, text_color, 1.0, "Thanks to MakiseKurisu & yuntiancherry for the ViGEm client support");
 			vita2d_pgf_draw_textf(debug_font, 2, 320, text_color, 1.0, "Thanks to Evengard for the vJoy client support");
 			vita2d_pgf_draw_textf(debug_font, 2, 340, text_color, 1.0, "Thanks to nyorem for the Linux client port");

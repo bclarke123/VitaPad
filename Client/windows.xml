@@ -34,3 +34,8 @@
 <KEY_RANALOG_DOWN>0x03</KEY_RANALOG_DOWN>
 <KEY_RANALOG_LEFT>0x05</KEY_RANALOG_LEFT>
 <KEY_RANALOG_RIGHT>0x07</KEY_RANALOG_RIGHT>
+<!-- Optional: keys for L1/R1/L3/R3 (buttons remapped on the Vita, or a PS TV controller). 0x00 = unmapped -->
+<KEY_L1>0x10</KEY_L1>
+<KEY_R1>0x12</KEY_R1>
+<KEY_L3>0x2C</KEY_L3>
+<KEY_R3>0x2D</KEY_R3>

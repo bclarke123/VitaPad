@@ -23,6 +23,14 @@ The PC client and the Vita app must be updated together: the new client will tel
 
 ## Controls Mapping
 
+### Remapping buttons on the Vita
+
+Hold L + R + START for 1 second on the Vita to open the remapping menu. Up/Down picks a button, Left/Right changes what it sends, Triangle resets everything and START saves and closes. Each Vita button can send any other Vita button, nothing, or the DualShock 4 buttons the Vita doesn't have: L1, R1, L3 and R3 (e.g. SELECT = L3). The PC receives no input while the menu is open.
+
+The mapping is saved on the Vita (`ux0:data/VitaPad/remap.txt`), so it works with every PC mode and survives reinstalling the PC client. L1/R1/L3/R3 work in ViGEm and vJoy mode; in keyboard mode they press `KEY_L1`, `KEY_R1`, `KEY_L3`, `KEY_R3` from the XML file (Q, E, Z, X by default). They also work with a PS TV controller.
+
+### PC key mapping
+
 You can edit your controls mapping by editing the XML file inside the client folder (windows.xml / linux.xml)
 
 Default mapping:
