@@ -29,7 +29,7 @@ int vitapadKernelGetButtons(uint32_t *buttons) {
 	return res;
 }
 
-void _start() __attribute__ ((weak, alias("module_start")));
+int _start(SceSize args, void *argp) __attribute__ ((weak, alias("module_start")));
 int module_start(SceSize args, void *argp) {
 	return SCE_KERNEL_START_SUCCESS;
 }

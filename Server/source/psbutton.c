@@ -49,7 +49,7 @@ static void unlock(void){
 }
 
 void ps_init(void){
-	int search_buf[2];
+	int search_buf[2] = { 0, 0 };
 	if (_vshKernelSearchModuleByName(KERNEL_MODULE_NAME, search_buf) < 0){
 		// Already restarted once and the module still isn't there: give up, the PS button stays native
 		SceUID flag = sceIoOpen(RESTART_FLAG, SCE_O_RDONLY, 0);

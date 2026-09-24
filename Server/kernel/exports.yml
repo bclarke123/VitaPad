@@ -6,7 +6,7 @@ VitaPadKernel:
   main:
     start: module_start
     stop: module_stop
-  modules:
+  libraries:
     VitaPadKernelLibrary:
       syscall: true
       functions:
