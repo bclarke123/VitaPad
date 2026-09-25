@@ -23,11 +23,12 @@ The PC client and the Vita app must be updated together: the new client will tel
 
 ## USB mode (no PC client)
 
-VitaPad can also be a plain **USB gamepad**: in the remapping menu (hold L + R + START) set **Connection** to **USB**, then plug the Vita into the computer with its USB cable. The computer sees a standard USB game controller, so there's nothing to install and it works on Windows, macOS and Linux (and anything else that accepts USB gamepads).
+VitaPad can also be a **USB controller**: in the remapping menu (hold L + R + START) set **Connection** to one of the USB options, then plug the Vita into the computer with its USB cable. There's nothing to install on the computer.
 
-- Buttons follow the DualShock 4 order (Square, Cross, Circle, Triangle, L1, R1, L2, R2, Share, Options, L3, R3, PS), with the D-pad as a hat switch and both sticks. Button remapping and the PS button settings apply.
+- **USB, as a DualShock 4** (default USB option): the computer sees a wired PS4 controller, with gyro, accelerometer and touchpad (the Vita's rear touch). Steam, SDL games, macOS (GameController) and Linux (`hid-playstation`) recognize it natively; on Windows, games with DS4 support and Steam Input use it directly, and DS4Windows can turn it into an Xbox controller for everything else.
+- **USB, as a standard gamepad**: a generic USB game controller with 14 buttons, a hat and two sticks, no motion or touchpad. Use it if something doesn't like the DualShock 4.
+- Buttons follow the DualShock 4 layout (Square, Cross, Circle, Triangle, L1, R1, L2, R2, Share, Options, L3, R3, PS), with the D-pad as a hat switch and both sticks. Button remapping and the PS button settings apply.
 - Vita L/R are L2/R2 and the front touchscreen corners are L1/R1 (top) and L3/R3 (bottom), like the ViGEm default.
-- Gyro and touchpad aren't sent in USB mode yet.
 - Needs Enable Unsafe Homebrew (same kernel module as the PS button). Not available on PS TV (no USB device port).
 - While USB mode is on, the Vita's USB file transfer is off. Leaving VitaPad for more than 2 seconds gives USB back to the system; coming back turns USB mode on again.
 
