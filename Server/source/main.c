@@ -319,14 +319,15 @@ int main(){
 		}
 		// With the screen off we draw a plain black frame: OLED pixels are off, so no burn-in
 		else if (!screen_off){
-			vita2d_pgf_draw_text(debug_font, 2, 20, text_color, 1.0, "VitaPad v.1.7 by Rinnegatamante");
+			vita2d_pgf_draw_text(debug_font, 2, 20, text_color, 1.0, "VitaPad v.1.8 by Rinnegatamante");
 			if (has_ip) vita2d_pgf_draw_textf(debug_font, 2, 60, text_color, 1.0, "Listening on:\nIP: %s\nPort: %d", vita_ip, GAMEPAD_PORT);
 			else vita2d_pgf_draw_text(debug_font, 2, 60, text_color, 1.0, "Waiting for Wi-Fi connection...");
 			vita2d_pgf_draw_textf(debug_font, 2, 200, text_color, 1.0, "Status: %s", connected ? "Connected!" : "Waiting connection...");
+			const char *usb_kind = usb_connection() == CONNECTION_USB_GENERIC ? "standard gamepad" : "DualShock 4";
 			switch (usb_state()){
-			case USB_STATE_CONNECTED: vita2d_pgf_draw_text(debug_font, 2, 220, text_color, 1.0, "USB mode: connected, the computer sees a USB gamepad"); break;
-			case USB_STATE_WAITING: vita2d_pgf_draw_text(debug_font, 2, 220, text_color, 1.0, "USB mode: plug the Vita into a computer with a USB cable"); break;
-			default: if (usb_enabled()) vita2d_pgf_draw_text(debug_font, 2, 220, text_color, 1.0, "USB mode: starting..."); break;
+			case USB_STATE_CONNECTED: vita2d_pgf_draw_textf(debug_font, 2, 220, text_color, 1.0, "USB mode: connected, the computer sees a %s", usb_kind); break;
+			case USB_STATE_WAITING: vita2d_pgf_draw_textf(debug_font, 2, 220, text_color, 1.0, "USB mode (%s): plug the Vita into a computer with a USB cable", usb_kind); break;
+			default: if (usb_connection() != CONNECTION_WIFI) vita2d_pgf_draw_textf(debug_font, 2, 220, text_color, 1.0, "USB mode (%s): starting...", usb_kind); break;
 			}
 			vita2d_pgf_draw_text(debug_font, 2, 240, text_color, 1.0, "Hold L + R + SELECT for 1 second to turn the screen off/on");
 			vita2d_pgf_draw_textf(debug_font, 2, 260, text_color, 1.0, "Hold L + R + START for 1 second to remap buttons (%d remapped)", remap_changed_count());

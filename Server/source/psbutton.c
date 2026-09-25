@@ -13,7 +13,7 @@
 
 #define TITLE_ID "VPAD00001"
 // Must match the module name in kernel/exports.yml (it carries the ABI version)
-#define KERNEL_MODULE_NAME "VitaPadKernel2"
+#define KERNEL_MODULE_NAME "VitaPadKernel3"
 #define KERNEL_MODULE_PATH "ux0:app/" TITLE_ID "/module/vitapad_kernel.skprx"
 // Written right before restarting after loading the module, so a failure can't cause a restart loop
 #define RESTART_FLAG "ux0:data/VitaPad/restarted.flag"

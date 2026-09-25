@@ -75,7 +75,8 @@ void remap_load(void){
 		if (eq == NULL) continue;
 		*eq = 0;
 		if (strcmp(line, "Connection") == 0){
-			usb_set_enabled(strcmp(eq + 1, "USB") == 0);
+			for (int c = 0; c < CONNECTIONS_NUM; c++)
+				if (strcmp(eq + 1, usb_connection_id(c)) == 0) usb_set_connection(c);
 			continue;
 		}
 		if (strcmp(line, "PSButton") == 0){
@@ -97,7 +98,7 @@ static void remap_save(void){
 	if (f == NULL) return;
 	for (int i = 0; i < (int)SOURCES_NUM; i++) fprintf(f, "%s=%s\n", sources[i].name, targets[mapping[i]].name);
 	fprintf(f, "PSButton=%s\n", ps_mode_id(ps_mode()));
-	fprintf(f, "Connection=%s\n", usb_enabled() ? "USB" : "WiFi");
+	fprintf(f, "Connection=%s\n", usb_connection_id(usb_connection()));
 	fclose(f);
 }
 
@@ -130,7 +131,10 @@ int remap_menu_update(uint32_t buttons){
 	if (pressed & SCE_CTRL_UP) selected = (selected + ROWS_NUM - 1) % ROWS_NUM;
 	if (pressed & SCE_CTRL_DOWN) selected = (selected + 1) % ROWS_NUM;
 	if (selected == CONNECTION_ROW){
-		if ((pressed & (SCE_CTRL_LEFT | SCE_CTRL_RIGHT)) && ps_available()) usb_set_enabled(!usb_enabled());
+		if (ps_available()){
+			if (pressed & SCE_CTRL_LEFT) usb_set_connection((usb_connection() + CONNECTIONS_NUM - 1) % CONNECTIONS_NUM);
+			if (pressed & SCE_CTRL_RIGHT) usb_set_connection((usb_connection() + 1) % CONNECTIONS_NUM);
+		}
 	}else if (selected == PS_ROW){
 		if (ps_available()){
 			if (pressed & SCE_CTRL_LEFT) ps_set_mode((ps_mode() + PS_MODES_NUM - 1) % PS_MODES_NUM);
@@ -179,7 +183,7 @@ void remap_menu_draw(vita2d_pgf *font){
 	else vita2d_pgf_draw_text(font, 260, y, available ? white : dim, 1.0, value);
 
 	y = ROW_Y(CONNECTION_ROW);
-	const char *connection = !available ? "Wi-Fi (USB mode needs Unsafe Homebrew)" : usb_enabled() ? "USB (plug the Vita into the computer)" : "Wi-Fi (VitaPad PC client)";
+	const char *connection = !available ? "Wi-Fi (USB mode needs Unsafe Homebrew)" : usb_connection_label(usb_connection());
 	if (selected == CONNECTION_ROW) vita2d_draw_rectangle(12, y - 21, 936, 28, RGBA8(0x2B, 0x30, 0x40, 0xFF));
 	vita2d_pgf_draw_text(font, 30, y, selected == CONNECTION_ROW ? accent : white, 1.0, "Connection");
 	vita2d_pgf_draw_text(font, 200, y, dim, 1.0, "->");

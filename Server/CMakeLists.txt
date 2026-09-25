@@ -13,7 +13,7 @@ include("$ENV{VITASDK}/share/vita.cmake" REQUIRED)
 
 set(VITA_APP_NAME "VitaPad")
 set(VITA_TITLEID "VPAD00001")
-set(VITA_VERSION "01.70")
+set(VITA_VERSION "01.80")
 
 # Kernel module: reads the PS button (in its own directory: vitasdk's macros leak variables between calls)
 add_subdirectory(kernel)
@@ -31,7 +31,7 @@ set_target_properties(VitaPad PROPERTIES LINK_FLAGS "-Wl,-q")
 add_dependencies(VitaPad vitapad_kernel_stubs)
 target_link_libraries(VitaPad
   # Weak: the app still starts when the kernel module isn't loaded
-  ${CMAKE_CURRENT_BINARY_DIR}/kernel/libVitaPadKernel2_stub_weak.a
+  ${CMAKE_CURRENT_BINARY_DIR}/kernel/libVitaPadKernel3_stub_weak.a
   vita2d
   SceLibKernel_stub SceSysmodule_stub SceCtrl_stub SceTouch_stub SceMotion_stub
   m SceNet_stub SceNetCtl_stub SceAppUtil_stub ScePgf_stub

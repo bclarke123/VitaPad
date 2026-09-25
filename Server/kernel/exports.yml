@@ -1,4 +1,4 @@
-VitaPadKernel2:
+VitaPadKernel3:
   attributes: 0
   version:
     major: 1
@@ -7,7 +7,7 @@ VitaPadKernel2:
     start: module_start
     stop: module_stop
   libraries:
-    VitaPadKernel2Library:
+    VitaPadKernel3Library:
       syscall: true
       functions:
         - vitapadKernelGetButtons

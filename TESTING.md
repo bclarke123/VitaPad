@@ -82,7 +82,7 @@ Run `VitaPad --viewer` (add `--monitor` to skip controller emulation). The brows
 
 | # | Do | Expect |
 |---|----|--------|
-| 1d.1 | Remap menu: Connection → USB, START; plug the Vita into a computer | Main screen: "USB mode: connected"; the computer shows a new game controller named VitaPad (Windows: "Set up USB game controllers"; macOS: System Information → USB; Linux: `jstest` / `evtest`) |
+| 1d.1 | Remap menu: Connection → "USB, as a standard gamepad", START; plug the Vita into a computer | Main screen: "USB mode: connected"; the computer shows a new game controller named VitaPad (Windows: "Set up USB game controllers"; macOS: System Information → USB; Linux: `jstest` / `evtest`) |
 | 1d.2 | Open https://hardwaretester.com/gamepad and press everything | 14 buttons in DualShock 4 order, D-pad as a hat/POV, both sticks; front touch corners = L1/R1/L3/R3 |
 | 1d.3 | Remap a button, tap PS | Remap and PS button apply over USB too |
 | 1d.4 | Open the remap menu while connected | The gamepad goes neutral |
@@ -90,6 +90,22 @@ Run `VitaPad --viewer` (add `--monitor` to skip controller emulation). The brows
 | 1d.6 | Reopen VitaPad | Controller comes back within a second or two |
 | 1d.7 | Connection → Wi-Fi | Controller disappears; the PC client works as before |
 | 1d.8 | Try it in Steam and a game | Steam lists the controller (may ask to map it once); inputs reach the game |
+
+## 1e. USB mode as a DualShock 4 (real Vita + computer, no PC client)
+
+| # | Do | Expect |
+|---|----|--------|
+| 1e.1 | Remap menu: Connection → "USB, as a DualShock 4", START; plug the Vita in | Main screen: "USB mode: connected, the computer sees a DualShock 4" |
+| 1e.2 | macOS: System Information → USB; Linux: `dmesg` | A USB device with vendor 054c, product 09cc (Sony DualShock 4); Linux loads `hid-playstation` (a touchpad and a motion sensors device appear in `evtest`) |
+| 1e.3 | https://hardwaretester.com/gamepad (Chrome) | Recognized as a DualShock 4 / standard mapping: 17 buttons incl. PS and touchpad click, both sticks; L/R show as analog L2/R2 at 0 or 1 |
+| 1e.4 | macOS: a game or app using GameController (e.g. a controller-supporting Arcade game), or Safari on the tester page | The controller shows as a DualShock 4 |
+| 1e.5 | Steam > Settings > Controller: it lists a PS4 controller; open Test Device Inputs | Buttons, sticks, PS; rear touch moves on the touchpad; gyro view follows the Vita |
+| 1e.6 | Gyro direction in Steam's gyro view: turn the Vita left/right, tilt it forward/back, roll it | Each moves the same way on screen. If one is mirrored, note which one |
+| 1e.7 | Lay the Vita flat, face up, still | Gyro view stays level and doesn't drift |
+| 1e.8 | Touch the rear with two fingers | Both show on the touchpad, in the right corners (rear top-left = touchpad top-left, seen from the front) |
+| 1e.9 | A game with rumble or light bar (or SDL's `testcontroller`) | No hang or disconnect when the game sends rumble/light bar (they're ignored) |
+| 1e.10 | Switch Connection between the two USB options while plugged in | Controller disappears and comes back as the other kind within a few seconds |
+| 1e.11 | Double-tap PS to the LiveArea, wait 3 s, then reopen VitaPad | USB file transfer works while away; the DualShock 4 comes back |
 
 ## 3. Controller output (Windows, fake Vita or real Vita)
 
