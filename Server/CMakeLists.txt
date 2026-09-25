@@ -24,6 +24,7 @@ add_executable(VitaPad
   source/remap.c
   source/psbutton.c
   source/usbmode.c
+  source/inputrate.c
 )
 target_include_directories(VitaPad PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../Common ${CMAKE_CURRENT_SOURCE_DIR}/kernel)
 target_compile_options(VitaPad PRIVATE -Wall -O3)

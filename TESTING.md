@@ -107,6 +107,16 @@ Run `VitaPad --viewer` (add `--monitor` to skip controller emulation). The brows
 | 1e.10 | Switch Connection between the two USB options while plugged in | Controller disappears and comes back as the other kind within a few seconds |
 | 1e.11 | Double-tap PS to the LiveArea, wait 3 s, then reopen VitaPad | USB file transfer works while away; the DualShock 4 comes back |
 
+## 1f. Input update rates (real Vita)
+
+The bottom of the Vita's main screen shows how often the Vita really updates its inputs (counted from the timestamps of new samples) and, while a PC client is connected, how many of its polls per second carried new button/stick data.
+
+| # | Do | Expect / note down |
+|---|----|--------|
+| 1f.1 | Open VitaPad, don't touch anything | "Input updates/s": note the buttons & sticks, touch and motion numbers (they count updates even when nothing changes) |
+| 1f.2 | Connect the PC client (`--monitor` is fine) | "PC polls/s" is about the client's pkt/s; the "with new data" number is at most the buttons & sticks rate |
+| 1f.3 | Switch Connection to USB and back | The input rates don't change with the connection |
+
 ## 3. Controller output (Windows, fake Vita or real Vita)
 
 Set `VIGEM_MODE` to 1 in `windows.xml`, run `VitaPad` (without `--monitor`) and open a controller tester: Steam > Settings > Controller > Test Device Inputs, DS4Windows, or https://hardwaretester.com/gamepad.

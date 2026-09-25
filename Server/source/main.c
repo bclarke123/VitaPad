@@ -18,6 +18,7 @@
 #include "remap.h"
 #include "psbutton.h"
 #include "usbmode.h"
+#include "inputrate.h"
 
 #define NET_INIT_SIZE 1*1024*1024
 
@@ -82,6 +83,7 @@ static void fill_packet(PadPacket *pkg){
 	sceCtrlPeekBufferPositive(0, &pad, 1);
 	sceTouchPeek(SCE_TOUCH_PORT_FRONT, &front, 1);
 	sceTouchPeek(SCE_TOUCH_PORT_BACK, &retro, 1);
+	input_rate_poll(pad.timeStamp);
 	// While the remap menu is open the PC gets a neutral pad
 	if (remap_menu_open){
 		memset(pkg, 0, sizeof(PadPacket));
@@ -108,6 +110,7 @@ static void fill_packet_v2(PadPacketV2 *pkg){
 	sceCtrlPeekBufferPositive(0, &pad, 1);
 	sceTouchPeek(SCE_TOUCH_PORT_FRONT, &front, 1);
 	sceTouchPeek(SCE_TOUCH_PORT_BACK, &retro, 1);
+	input_rate_poll(pad.timeStamp);
 	memset(pkg, 0, sizeof(PadPacketV2));
 	pkg->timestamp = (uint32_t)sceKernelGetProcessTimeWide();
 	pkg->battery = battery;
@@ -249,6 +252,7 @@ int main(){
 	remap_load();
 	ps_init();
 	usb_init();
+	input_rate_init();
 
 	// Initializing graphics stuffs
 	vita2d_init();
@@ -343,6 +347,10 @@ int main(){
 			vita2d_pgf_draw_textf(debug_font, 2, 400, text_color, 1.0, "@Sarkies_Proxy - ArkSource - Freddy Parra");
 			vita2d_pgf_draw_textf(debug_font, 2, 420, text_color, 1.0, "RaveHeart - Tain Sueiras - drd7of14 - psymu");
 			vita2d_pgf_draw_textf(debug_font, 2, 440, text_color, 1.0, "The Vita3K project - nullobject - polytoad");
+			InputRates rates;
+			input_rate_get(&rates);
+			vita2d_pgf_draw_textf(debug_font, 2, 480, text_color, 1.0, "Input updates/s: buttons & sticks %d, touch %d, motion %d", rates.ctrl, rates.touch, rates.motion);
+			if (connected) vita2d_pgf_draw_textf(debug_font, 2, 500, text_color, 1.0, "PC polls/s: %d (%d with new button & stick data)", rates.polls, rates.fresh);
 		}
 		vita2d_end_drawing();
 		vita2d_wait_rendering_done();
