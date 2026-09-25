@@ -21,6 +21,18 @@ Run `VitaPad --monitor` to see everything the Vita sends without emulating any i
 
 The PC client and the Vita app must be updated together: the new client will tell you if the Vita app is outdated.
 
+## USB mode (no PC client)
+
+VitaPad can also be a plain **USB gamepad**: in the remapping menu (hold L + R + START) set **Connection** to **USB**, then plug the Vita into the computer with its USB cable. The computer sees a standard USB game controller, so there's nothing to install and it works on Windows, macOS and Linux (and anything else that accepts USB gamepads).
+
+- Buttons follow the DualShock 4 order (Square, Cross, Circle, Triangle, L1, R1, L2, R2, Share, Options, L3, R3, PS), with the D-pad as a hat switch and both sticks. Button remapping and the PS button settings apply.
+- Vita L/R are L2/R2 and the front touchscreen corners are L1/R1 (top) and L3/R3 (bottom), like the ViGEm default.
+- Gyro and touchpad aren't sent in USB mode yet.
+- Needs Enable Unsafe Homebrew (same kernel module as the PS button). Not available on PS TV (no USB device port).
+- While USB mode is on, the Vita's USB file transfer is off. Leaving VitaPad for more than 2 seconds gives USB back to the system; coming back turns USB mode on again.
+
+Thanks to xerpi's [vitastick](https://github.com/xerpi/vitastick) for showing it can be done.
+
 ## Controls Mapping
 
 ### Remapping buttons on the Vita

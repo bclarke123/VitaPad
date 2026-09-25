@@ -24,6 +24,13 @@ jobs:
         with:
           name: VitaPad-vita
           path: Server/out/VitaPad.vpk
+      # Unstripped binaries, to read crash dumps (vita-parse-core)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VitaPad-vita-debug
+          path: |
+            Server/out/VitaPad
+            Server/out/kernel/vitapad_kernel
 
   windows:
     name: Windows client
