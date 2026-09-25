@@ -56,6 +56,10 @@ In vJoy mode the PS button is button 11 (needs a vJoy device with 11 or more but
 
 Thanks to TheOfficialFloW's [Adrenaline](https://github.com/TheOfficialFloW/Adrenaline) for the technique.
 
+### Fast buttons
+
+The Vita's normal controller API only refreshes the buttons once per frame (60 times a second). With **Buttons → Fast** in the remapping menu (the default), VitaPad reads the 12 buttons (face buttons, D-pad, L/R, Start, Select) straight from the Vita's system controller about 250 times a second, so a press reaches the PC or computer about 10 ms sooner on average, over Wi-Fi and USB alike. Sticks and touch still update 60 times a second. It needs Enable Unsafe Homebrew (same kernel module as the PS button); if a button ever disagrees with the normal API for too long, VitaPad falls back to the normal API for it. The main screen shows how much sooner the presses arrive.
+
 ### PC key mapping
 
 You can edit your controls mapping by editing the XML file inside the client folder (windows.xml / linux.xml)

@@ -19,6 +19,7 @@
 #include "psbutton.h"
 #include "usbmode.h"
 #include "inputrate.h"
+#include "fastinput.h"
 
 #define NET_INIT_SIZE 1*1024*1024
 
@@ -91,7 +92,7 @@ static void fill_packet(PadPacket *pkg){
 		return;
 	}
 	memcpy(pkg, &pad.buttons, 8); // Buttons + analogs state
-	pkg->buttons = remap_buttons(pad.buttons);
+	pkg->buttons = remap_buttons(fast_apply(pad.buttons));
 	pkg->tx = front.report[0].x;
 	pkg->ty = front.report[0].y;
 	uint8_t flags = NO_INPUT;
@@ -119,7 +120,7 @@ static void fill_packet_v2(PadPacketV2 *pkg){
 		pkg->lx = pkg->ly = pkg->rx = pkg->ry = 128;
 		return;
 	}
-	pkg->buttons = remap_buttons(pad.buttons) | ps_buttons();
+	pkg->buttons = remap_buttons(fast_apply(pad.buttons)) | ps_buttons();
 	pkg->lx = pad.lx;
 	pkg->ly = pad.ly;
 	pkg->rx = pad.rx;
@@ -316,8 +317,7 @@ int main(){
 		if (remap_menu_open) remap_menu_update(pad.buttons);
 		ps_update();
 
-		// Syscon button experiment: only while its results are on screen
-		input_rate_experiment(!screen_off && !remap_menu_open);
+		fast_update();
 
 		vita2d_start_drawing();
 		vita2d_clear_screen();
@@ -326,7 +326,7 @@ int main(){
 		}
 		// With the screen off we draw a plain black frame: OLED pixels are off, so no burn-in
 		else if (!screen_off){
-			vita2d_pgf_draw_text(debug_font, 2, 20, text_color, 1.0, "VitaPad v.1.8 by Rinnegatamante");
+			vita2d_pgf_draw_text(debug_font, 2, 20, text_color, 1.0, "VitaPad v.1.9 by Rinnegatamante");
 			if (has_ip) vita2d_pgf_draw_textf(debug_font, 2, 60, text_color, 1.0, "Listening on:\nIP: %s\nPort: %d", vita_ip, GAMEPAD_PORT);
 			else vita2d_pgf_draw_text(debug_font, 2, 60, text_color, 1.0, "Waiting for Wi-Fi connection...");
 			vita2d_pgf_draw_textf(debug_font, 2, 200, text_color, 1.0, "Status: %s", connected ? "Connected!" : "Waiting connection...");
@@ -354,11 +354,15 @@ int main(){
 			input_rate_get(&rates);
 			vita2d_pgf_draw_textf(debug_font, 2, 480, text_color, 1.0, "Input updates/s: buttons & sticks %d, touch %d, motion %d", rates.ctrl, rates.touch, rates.motion);
 			if (connected) vita2d_pgf_draw_textf(debug_font, 2, 500, text_color, 1.0, "PC polls/s: %d (%d with new button & stick data)", rates.polls, rates.fresh);
-			LatencyStats lat;
-			if (!input_rate_experiment_get(&lat)) vita2d_pgf_draw_text(debug_font, 2, 520, text_color, 1.0, "Direct button read: unavailable");
-			else if (lat.matched == 0) vita2d_pgf_draw_textf(debug_font, 2, 520, text_color, 1.0, "Direct button read: press buttons quickly (read takes %d us)", lat.read_us);
-			else vita2d_pgf_draw_textf(debug_font, 2, 520, text_color, 1.0, "Direct read %.1f ms earlier (min %.1f, max %.1f), %d changes, %d unmatched, read %d/%d us",
-				lat.avg_us / 1000.0f, lat.min_us / 1000.0f, lat.max_us / 1000.0f, lat.matched, lat.unmatched, lat.read_us, lat.read_max_us);
+			FastButtonsStats fast;
+			if (fast_stats(&fast)){
+				const int y = 520;
+				if (!fast_enabled()) vita2d_pgf_draw_text(debug_font, 2, y, text_color, 1.0, "Fast buttons: off (change it in the remap menu)");
+				else if (!fast.available) vita2d_pgf_draw_text(debug_font, 2, y, text_color, 1.0, "Fast buttons: unavailable on this firmware");
+				else if (!fast.running || fast.learned < 12) vita2d_pgf_draw_text(debug_font, 2, y, text_color, 1.0, "Fast buttons: starting...");
+				else vita2d_pgf_draw_textf(debug_font, 2, y, text_color, 1.0, "Fast buttons: %.1f ms sooner (%d changes), %d reads/s of %d us (max %d), %d fallbacks",
+					fast.avg_us / 1000.0f, fast.matched, fast.reads_per_s, fast.read_us, fast.read_max_us, fast.fallbacks);
+			}
 		}
 		vita2d_end_drawing();
 		vita2d_wait_rendering_done();

@@ -7,12 +7,6 @@
 #include <psp2/kernel/threadmgr.h>
 
 #include "inputrate.h"
-#include "psbutton.h"
-
-// From the kernel module (weak imports: resolved only once the module is loaded)
-int vitapadKernelLatencyStart(void);
-int vitapadKernelLatencyStop(void);
-int vitapadKernelLatencyGet(LatencyStats *stats);
 
 // Checked much more often than any input updates, so every update is seen
 #define CHECK_US 500
@@ -77,17 +71,3 @@ void input_rate_poll(uint64_t ctrl_timestamp){
 	last_poll_timestamp = ctrl_timestamp;
 }
 
-void input_rate_experiment(int enable){
-	static int enabled = 0;
-	if (!ps_available() || enable == enabled) return;
-	enabled = enable;
-	if (enable) vitapadKernelLatencyStart();
-	else vitapadKernelLatencyStop();
-}
-
-int input_rate_experiment_get(LatencyStats *stats){
-	if (!ps_available()) return 0;
-	memset(stats, 0, sizeof(*stats));
-	if (vitapadKernelLatencyGet(stats) < 0) return 0;
-	return stats->available;
-}

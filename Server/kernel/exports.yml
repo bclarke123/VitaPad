@@ -1,4 +1,4 @@
-VitaPadKernel4:
+VitaPadKernel5:
   attributes: 0
   version:
     major: 1
@@ -7,7 +7,7 @@ VitaPadKernel4:
     start: module_start
     stop: module_stop
   libraries:
-    VitaPadKernel4Library:
+    VitaPadKernel5Library:
       syscall: true
       functions:
         - vitapadKernelGetButtons
@@ -15,9 +15,10 @@ VitaPadKernel4:
         - vitapadKernelUsbStop
         - vitapadKernelUsbSetReport
         - vitapadKernelUsbGetState
-        - vitapadKernelLatencyStart
-        - vitapadKernelLatencyStop
-        - vitapadKernelLatencyGet
+        - vitapadKernelFastStart
+        - vitapadKernelFastStop
+        - vitapadKernelFastGetButtons
+        - vitapadKernelFastGetStats
 
 # The module and library names carry an ABI version: bump it whenever the syscalls change.
 # A kernel module stays loaded until the Vita reboots, so an app update would otherwise find the

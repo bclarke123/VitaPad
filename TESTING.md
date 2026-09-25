@@ -107,7 +107,7 @@ Run `VitaPad --viewer` (add `--monitor` to skip controller emulation). The brows
 | 1e.10 | Switch Connection between the two USB options while plugged in | Controller disappears and comes back as the other kind within a few seconds |
 | 1e.11 | Double-tap PS to the LiveArea, wait 3 s, then reopen VitaPad | USB file transfer works while away; the DualShock 4 comes back |
 
-## 1f. Input update rates (real Vita)
+## 1f. Input update rates and fast buttons (real Vita)
 
 The bottom of the Vita's main screen shows how often the Vita really updates its inputs (counted from the timestamps of new samples) and, while a PC client is connected, how many of its polls per second carried new button/stick data.
 
@@ -116,7 +116,12 @@ The bottom of the Vita's main screen shows how often the Vita really updates its
 | 1f.1 | Open VitaPad, don't touch anything | "Input updates/s": note the buttons & sticks, touch and motion numbers (they count updates even when nothing changes) |
 | 1f.2 | Connect the PC client (`--monitor` is fine) | "PC polls/s" is about the client's pkt/s; the "with new data" number is at most the buttons & sticks rate |
 | 1f.3 | Switch Connection to USB and back | The input rates don't change with the connection |
-| 1f.4 | With Unsafe Homebrew on, tap buttons (face buttons, D-pad, L/R, Start/Select) quickly, about 50 times | "Direct read X ms earlier": how much sooner the system controller chip (syscon) reports a button than the normal controller API. Note the average, min/max, unmatched count and read time |
+| 1f.4 | Remap menu: Buttons → Fast (default). Tap buttons (face buttons, D-pad, L/R, Start/Select) quickly, about 50 times | Main screen: "Fast buttons: X ms sooner": about 8-10 ms; about 250 reads/s; 0 fallbacks |
+| 1f.5 | Hold each of the 12 buttons for a second, one at a time, with `--monitor` running | Each shows while held and releases cleanly; nothing sticks or flickers |
+| 1f.6 | Volume up/down, power button (sleep and wake), PS button, with fast buttons on | All work as usual |
+| 1f.7 | USB mode with fast buttons, gamepad tester | Buttons as before |
+| 1f.8 | Remap menu: Buttons → Normal, START | Main screen: "Fast buttons: off"; everything works as before this feature; the setting is kept after restarting VitaPad |
+| 1f.9 | Play for 30+ minutes with fast buttons on | Battery use similar to before; no stuck buttons |
 
 ## 3. Controller output (Windows, fake Vita or real Vita)
 

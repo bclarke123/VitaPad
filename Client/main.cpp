@@ -1142,7 +1142,7 @@ int main(int argc,char** argv){
 	loadConfig(CONFIG_FILE);
 	life_tick = getLastModifiedTime(CONFIG_FILE);
 
-	printf("VitaPad Client v1.8 by Rinnegatamante\n\n");
+	printf("VitaPad Client v1.9 by Rinnegatamante\n\n");
 	if (MONITOR_MODE)
 	{
 		printf("MONITOR MODE: printing what the Vita sends, no input is emulated.\n\n");

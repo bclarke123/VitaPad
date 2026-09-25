@@ -22,8 +22,3 @@ void input_rate_get(InputRates *rates);
 // Called by the network thread on every PC poll, with the buttons/sticks sample timestamp it sent
 void input_rate_poll(uint64_t ctrl_timestamp);
 
-// Syscon button experiment (needs the kernel module): runs while enabled
-#include "latency.h"
-void input_rate_experiment(int enable);
-// Returns 0 if the experiment isn't available
-int input_rate_experiment_get(LatencyStats *stats);

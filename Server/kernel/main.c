@@ -13,7 +13,7 @@
 
 #define VITAPAD_KERNEL
 #include "usb.h"
-#include "latency.h"
+#include "fastbuttons.h"
 
 // Syscall: copies the current buttons, PS button included, to a user pointer
 int vitapadKernelGetButtons(uint32_t *buttons) {
@@ -38,13 +38,13 @@ int _start(SceSize args, void *argp) __attribute__ ((weak, alias("module_start")
 int module_start(SceSize args, void *argp) {
 	// USB mode is optional: the PS button keeps working if it can't start
 	usb_module_start();
-	// Input latency experiment: optional too
-	latency_module_start();
+	// Fast buttons: optional too
+	fast_module_start();
 	return SCE_KERNEL_START_SUCCESS;
 }
 
 int module_stop(SceSize args, void *argp) {
-	latency_module_stop();
+	fast_module_stop();
 	usb_module_stop();
 	return SCE_KERNEL_STOP_SUCCESS;
 }
