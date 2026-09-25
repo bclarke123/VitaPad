@@ -3,10 +3,12 @@
 #include "ViGEm/Client.h"
 
 #include "main.h"
+#include "xbox.h"
 
 enum VIGEM_DEVICE {
     VIGEM_DEVICE_NONE   = 0,
     VIGEM_DEVICE_DS4    = 1,
+    VIGEM_DEVICE_X360   = 2,
 };
 
 // What a Vita touch panel does on the emulated DualShock 4
@@ -27,5 +29,6 @@ typedef struct {
 } VigemOptions;
 
 void vgDestroy();
-bool vgInit();
+bool vgInit(unsigned int device);
 bool vgSubmit(const PadPacketV2 *packet, const VigemOptions *options);
+bool vgSubmitX360(const XboxState *state);
