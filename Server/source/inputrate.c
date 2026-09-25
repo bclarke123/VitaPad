@@ -13,7 +13,7 @@
 #define WINDOW_US (1000 * 1000)
 
 static InputRates last;
-static volatile int polls = 0, fresh = 0;
+static volatile int polls = 0, fresh = 0, streamed = 0;
 static uint64_t last_poll_timestamp = 0;
 
 static int rate_thread(SceSize args, void *argp){
@@ -46,8 +46,9 @@ static int rate_thread(SceSize args, void *argp){
 			last.motion = motion * (uint64_t)WINDOW_US / span;
 			last.polls = polls * (uint64_t)WINDOW_US / span;
 			last.fresh = fresh * (uint64_t)WINDOW_US / span;
+			last.streamed = streamed * (uint64_t)WINDOW_US / span;
 			ctrl = touch = motion = 0;
-			polls = fresh = 0;
+			polls = fresh = streamed = 0;
 			window_start = now;
 		}
 		sceKernelDelayThread(CHECK_US);
@@ -71,3 +72,6 @@ void input_rate_poll(uint64_t ctrl_timestamp){
 	last_poll_timestamp = ctrl_timestamp;
 }
 
+void input_rate_stream(void){
+	streamed++;
+}

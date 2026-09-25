@@ -60,6 +60,10 @@ Thanks to TheOfficialFloW's [Adrenaline](https://github.com/TheOfficialFloW/Adre
 
 The Vita's normal controller API only refreshes the buttons once per frame (60 times a second). With **Buttons → Fast** in the remapping menu (the default), VitaPad reads the 12 buttons (face buttons, D-pad, L/R, Start, Select) straight from the Vita's system controller about 250 times a second, so a press reaches the PC or computer about 10 ms sooner on average, over Wi-Fi and USB alike. Sticks and touch still update 60 times a second. It needs Enable Unsafe Homebrew (same kernel module as the PS button); if a button ever disagrees with the normal API for too long, VitaPad falls back to the normal API for it. The main screen shows how much sooner the presses arrive.
 
+### Streaming (low latency over Wi-Fi)
+
+With the Vita app 1.9 or newer, the Vita **streams** its input to the PC client over UDP: every button change goes out straight away (together with fast buttons, about 10 ms sooner overall), and a packet lost on Wi-Fi costs one sample instead of a hiccup. It's on by default (`STREAM_MODE` in the XML file); set it to 0, or run `VitaPad --poll`, to poll the Vita over TCP like older versions. Older Vita apps are polled automatically. The client sends UDP to port 5001 on the Vita; the Vita's replies get through the PC firewall as answers, so nothing needs to be opened.
+
 ### PC key mapping
 
 You can edit your controls mapping by editing the XML file inside the client folder (windows.xml / linux.xml)

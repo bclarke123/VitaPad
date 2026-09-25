@@ -40,6 +40,10 @@ Run `python3 tools/fake_vita.py` and the client in another window.
 | 2.4 | Run it with `--no-discovery`, delete `vita_ip.txt` | Client says it's waiting for the Vita and keeps trying; running `VitaPad <IP>` instead connects |
 | 2.4b | Start the client first, the fake Vita 10 s later | Client waits quietly, then finds and connects to the fake Vita on its own |
 | 2.5 | Put a wrong IP in `vita_ip.txt` | Connecting to it fails, then discovery finds the right one and overwrites the file |
+| 2.6 | Plain fake Vita | "Streaming input from the Vita (UDP)."; `stream` at about 190 pkt/s |
+| 2.7 | Fake Vita with `--no-stream` | After about a second: "The Vita app doesn't stream input ... polling instead."; `poll` lines |
+| 2.8 | Fake Vita with `--stream-loss 0.2` | Still streaming, fewer pkt/s, max gap around 10-20 ms, no reconnects |
+| 2.9 | Fake Vita with `--drop-every 5` while streaming | "Connection lost, reconnecting..." then streaming again |
 
 ## 2b. 3D viewer (fake Vita or real Vita)
 
@@ -122,6 +126,18 @@ The bottom of the Vita's main screen shows how often the Vita really updates its
 | 1f.7 | USB mode with fast buttons, gamepad tester | Buttons as before |
 | 1f.8 | Remap menu: Buttons → Normal, START | Main screen: "Fast buttons: off"; everything works as before this feature; the setting is kept after restarting VitaPad |
 | 1f.9 | Play for 30+ minutes with fast buttons on | Battery use similar to before; no stuck buttons |
+
+## 1g. Streaming (real Vita + `--monitor`)
+
+| # | Do | Expect |
+|---|----|--------|
+| 1g.1 | Run `VitaPad --monitor` | "Streaming input from the Vita (UDP)."; lines show `stream`, about 120-200 pkt/s, max gap under 20 ms; the Vita shows "Streaming to the PC: N packets/s" |
+| 1g.2 | Tap buttons, move sticks, touch, tilt | Everything shows up as before |
+| 1g.3 | Run `VitaPad --monitor --poll` | Lines show `poll`, like before 1.9 |
+| 1g.4 | Walk away from the router / behind walls until Wi-Fi gets weak | Stream mode: `max gap` rises but input keeps flowing; compare with `--poll`, where a weak signal shows as long freezes |
+| 1g.5 | Close the client | The Vita stops streaming within 3 s (the line disappears) |
+| 1g.6 | Suspend the Vita (PS, sleep) and wake it | Client reconnects and streams again |
+| 1g.7 | Windows: first run with streaming | No firewall prompt needed for input to arrive |
 
 ## 3. Controller output (Windows, fake Vita or real Vita)
 

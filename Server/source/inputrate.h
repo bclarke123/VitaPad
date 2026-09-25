@@ -11,6 +11,7 @@ typedef struct {
 	int motion;    // Motion sensor updates per second
 	int polls;     // PC polls per second (Wi-Fi)
 	int fresh;     // PC polls per second that carried a buttons/sticks update the previous poll didn't have
+	int streamed;  // Packets per second streamed to the PC (UDP)
 } InputRates;
 
 // Starts the measuring thread
@@ -22,3 +23,5 @@ void input_rate_get(InputRates *rates);
 // Called by the network thread on every PC poll, with the buttons/sticks sample timestamp it sent
 void input_rate_poll(uint64_t ctrl_timestamp);
 
+// Called by the stream thread for every packet sent
+void input_rate_stream(void);

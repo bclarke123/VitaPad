@@ -64,6 +64,20 @@ typedef int sock_t;
 // File where the IP of the last Vita we connected to is remembered
 #define SAVED_IP_FILE "vita_ip.txt"
 
+// 1 = the Vita streams input over UDP as soon as it changes (lowest latency, Vita app 1.9+),
+// 0 = poll it over TCP. Falls back to polling by itself when the Vita app can't stream
+bool STREAM_MODE = true;
+// --poll on the command line: always poll, whatever the config says
+bool FORCE_POLL = false;
+// How long to wait for the first streamed packet before falling back to polling
+#define STREAM_PROBE_MS 1000
+// Streaming: no packet for this long means the connection is lost (the Vita sends at least every 20 ms)
+#define STREAM_LOST_MS 1000
+// Streaming: a TCP poll this often keeps the connection (and the Vita) awake
+#define KEEPALIVE_MS 250
+// Config file changes are checked this often
+#define CONFIG_CHECK_MS 500
+
 #define CONNECT_TIMEOUT_MS 2000
 #define SOCKET_TIMEOUT_MS 3000
 #define DISCOVERY_TIMEOUT_MS 1500
@@ -198,7 +212,6 @@ static uint16_t readOptionalKey(tinyxml2::XMLDocument& doc, const char* name, ui
 	return strtoul(k1->GetText(), NULL, 16);
 }
 
-#ifdef __WIN32__
 static bool readBool(tinyxml2::XMLDocument& doc, const char* name, bool value)
 {
 	tinyxml2::XMLElement* k1 = doc.FirstChildElement(name);
@@ -215,6 +228,7 @@ static unsigned int readUnsigned(tinyxml2::XMLDocument& doc, const char* name, u
 	return value;
 }
 
+#ifdef __WIN32__
 static float readFloat(tinyxml2::XMLDocument& doc, const char* name, float value)
 {
 	tinyxml2::XMLElement* k1 = doc.FirstChildElement(name);
@@ -260,6 +274,8 @@ void loadConfig(const char* path)
 	KEY_L3 = readOptionalKey(doc, "KEY_L3", KEY_L3);
 	KEY_R3 = readOptionalKey(doc, "KEY_R3", KEY_R3);
 	KEY_PS = readOptionalKey(doc, "KEY_PS", KEY_PS);
+
+	STREAM_MODE = readBool(doc, "STREAM_MODE", STREAM_MODE);
 
 #ifdef __WIN32__
 	if (readBool(doc, "VJOY_MODE", false)) VJOY_MODE = true;
@@ -952,6 +968,24 @@ static uint64_t nowMs()
 	#endif
 }
 
+static uint64_t nowUs()
+{
+	#ifdef __WIN32__
+	static LARGE_INTEGER frequency = { 0 };
+	if (frequency.QuadPart == 0) QueryPerformanceFrequency(&frequency);
+	LARGE_INTEGER counter;
+	QueryPerformanceCounter(&counter);
+	return (uint64_t)(counter.QuadPart / frequency.QuadPart) * 1000000 + (uint64_t)(counter.QuadPart % frequency.QuadPart) * 1000000 / frequency.QuadPart;
+	#else
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return (uint64_t)ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
+	#endif
+}
+
+// How the current session gets input, shown by the monitor
+static const char* LINK_MODE = "poll";
+
 static void printTouches(const char* name, const TouchPoint* points, int num)
 {
 	printf(" %s:", name);
@@ -971,6 +1005,11 @@ static void printMonitor(const PadPacketV2& packet)
 	static int packets = 0;
 	static int rate = 0;
 	static uint64_t rate_start = 0;
+	// Longest wait between two packets over the last second: spikes show up here
+	static uint64_t last_packet_us = 0, gap_us = 0, max_gap_us = 0;
+	uint64_t now_us = nowUs();
+	if (last_packet_us && now_us - last_packet_us > gap_us) gap_us = now_us - last_packet_us;
+	last_packet_us = now_us;
 	uint64_t now = nowMs();
 	packets++;
 	if (now - rate_start >= 1000)
@@ -978,11 +1017,14 @@ static void printMonitor(const PadPacketV2& packet)
 		rate = packets;
 		packets = 0;
 		rate_start = now;
+		max_gap_us = gap_us;
+		gap_us = 0;
 	}
 	if (now - last < 200) return;
 	last = now;
 
-	printf("[%4d pkt/s] bat %3d%% | L(%3d,%3d) R(%3d,%3d) |", rate, packet.battery, packet.lx, packet.ly, packet.rx, packet.ry);
+	printf("[%4d pkt/s %s, max gap %3d ms] bat %3d%% | L(%3d,%3d) R(%3d,%3d) |", rate, LINK_MODE, (int)(max_gap_us / 1000),
+		packet.battery, packet.lx, packet.ly, packet.rx, packet.ry);
 	printTouches("front", packet.front, packet.front_num);
 	printTouches("rear", packet.rear, packet.rear_num);
 	printf(" | accel(%5.2f,%5.2f,%5.2f)G gyro(%7.1f,%7.1f,%7.1f)deg/s |",
@@ -1078,24 +1120,34 @@ BOOL WINAPI HandlerRoutine(
 enum {
 	SESSION_LOST,
 	SESSION_OUTDATED_SERVER,
-	SESSION_FATAL
+	SESSION_FATAL,
+	SESSION_NO_STREAM
 };
 
-// Polls the Vita until the connection drops
-static int runSession(sock_t sock, time_t& life_tick)
+// Reloads the config file when it was modified
+static void reloadConfigIfChanged(time_t& life_tick)
 {
+	time_t re_tick = getLastModifiedTime(CONFIG_FILE);
+	if (re_tick != life_tick){
+		loadConfig(CONFIG_FILE);
+		life_tick = re_tick;
+		printf("\nConfig file reloaded since a modification has been detected.");
+		fflush(stdout);
+	}
+}
+
+// Polls the Vita over TCP until the connection drops
+static int runPolling(sock_t sock, time_t& life_tick)
+{
+	LINK_MODE = "poll";
 	PadPacketV2 packet;
+	uint64_t last_config = 0;
 	for (;;){
-
-		// Checking if we need a mapping reload
-		time_t re_tick;
-		if ((re_tick = getLastModifiedTime(CONFIG_FILE)) != life_tick){
-			loadConfig(CONFIG_FILE);
-			life_tick = re_tick;
-			printf("\nConfig file reloaded since a modification has been detected.");
-			fflush(stdout);
+		if (nowMs() - last_config >= CONFIG_CHECK_MS)
+		{
+			last_config = nowMs();
+			reloadConfigIfChanged(life_tick);
 		}
-
 		if (!sendAll(sock, REQUEST_V2, REQUEST_SIZE)) return SESSION_LOST;
 		int count = recvAll(sock, &packet, sizeof(PadPacketV2));
 		// Old Vita apps ignore the request type and reply with a legacy packet
@@ -1104,6 +1156,129 @@ static int runSession(sock_t sock, time_t& life_tick)
 		if (VIEWER_MODE) viewerUpdate(packet);
 		if (!processPacket(packet)) return SESSION_FATAL;
 	}
+}
+
+// Receives the input the Vita streams over UDP (see protocol.h). Returns SESSION_NO_STREAM if the
+// Vita app doesn't stream (older versions): the caller then polls instead
+static int runStream(sock_t sock, time_t& life_tick)
+{
+	struct sockaddr_in addr;
+	socklen_t addrlen = sizeof(addr);
+	if (getpeername(sock, (struct sockaddr*)&addr, &addrlen) != 0) return SESSION_NO_STREAM;
+	addr.sin_port = htons(STREAM_PORT);
+
+	sock_t udp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (udp == INVALID_SOCKET) return SESSION_NO_STREAM;
+	// Connected: only the Vita's packets are received, and sending hellos first lets them through
+	// the PC's firewall
+	if (connect(udp, (struct sockaddr*)&addr, sizeof(addr)) != 0)
+	{
+		close_socket(udp);
+		return SESSION_NO_STREAM;
+	}
+	setNonBlocking(udp, true);
+
+	int result = SESSION_LOST;
+	bool streaming = false;
+	uint32_t last_seq = 0;
+	uint64_t start = nowMs(), last_packet = 0, last_hello = 0, last_keepalive = start, last_config = 0;
+	bool keepalive_pending = false;
+	char keepalive_reply[sizeof(PadPacketV2)];
+	int keepalive_got = 0;
+	for (;;)
+	{
+		uint64_t now = nowMs();
+		if (now - last_hello >= STREAM_HELLO_MS)
+		{
+			send(udp, STREAM_HELLO, sizeof(STREAM_HELLO), 0);
+			last_hello = now;
+		}
+		if (!streaming && now - start > STREAM_PROBE_MS) { result = SESSION_NO_STREAM; break; }
+		if (streaming && now - last_packet > STREAM_LOST_MS) { result = SESSION_LOST; break; }
+		if (now - last_config >= CONFIG_CHECK_MS)
+		{
+			last_config = now;
+			reloadConfigIfChanged(life_tick);
+		}
+
+		// Keepalive poll over TCP; its reply is read below and ignored (the stream is newer)
+		if (!keepalive_pending && now - last_keepalive >= KEEPALIVE_MS)
+		{
+			if (!sendAll(sock, REQUEST_V2, REQUEST_SIZE)) break;
+			keepalive_pending = true;
+			keepalive_got = 0;
+			last_keepalive = now;
+		}
+		if (keepalive_pending && now - last_keepalive > SOCKET_TIMEOUT_MS) break;
+
+		fd_set fds;
+		FD_ZERO(&fds);
+		FD_SET(udp, &fds);
+		if (keepalive_pending) FD_SET(sock, &fds);
+		struct timeval tv;
+		tv.tv_sec = 0;
+		tv.tv_usec = 50 * 1000;
+		sock_t maxfd = udp > sock ? udp : sock;
+		if (select((int)maxfd + 1, &fds, NULL, NULL, &tv) < 0) break;
+
+		if (keepalive_pending && FD_ISSET(sock, &fds))
+		{
+			int ret = recv(sock, keepalive_reply + keepalive_got, sizeof(keepalive_reply) - keepalive_got, 0);
+			if (ret <= 0) break;
+			keepalive_got += ret;
+			if (keepalive_got == (int)sizeof(keepalive_reply)) keepalive_pending = false;
+		}
+
+		if (FD_ISSET(udp, &fds))
+		{
+			// Everything that arrived, in order; errors (e.g. "port unreachable" from a Vita app that
+			// doesn't stream) just mean there's nothing to read
+			StreamPacket packet;
+			int len;
+			bool fatal = false;
+			while ((len = recv(udp, (char*)&packet, sizeof(packet), 0)) > 0)
+			{
+				if (len != (int)sizeof(packet) || memcmp(packet.magic, STREAM_MAGIC, 4) != 0) continue;
+				// Late packets (overtaken by newer ones) are dropped
+				if (streaming && (int32_t)(packet.seq - last_seq) <= 0) continue;
+				if (!streaming)
+				{
+					streaming = true;
+					LINK_MODE = "stream";
+					printf("Streaming input from the Vita (UDP).\n");
+					fflush(stdout);
+				}
+				last_seq = packet.seq;
+				last_packet = nowMs();
+				if (VIEWER_MODE) viewerUpdate(packet.pad);
+				if (!processPacket(packet.pad)) { fatal = true; break; }
+			}
+			if (fatal) { result = SESSION_FATAL; break; }
+		}
+	}
+	close_socket(udp);
+	return result;
+}
+
+// Talks to the Vita until the connection drops
+static int runSession(sock_t sock, time_t& life_tick)
+{
+	// A first poll checks the Vita app version
+	PadPacketV2 packet;
+	if (!sendAll(sock, REQUEST_V2, REQUEST_SIZE)) return SESSION_LOST;
+	int count = recvAll(sock, &packet, sizeof(PadPacketV2));
+	if (count == sizeof(PadPacket)) return SESSION_OUTDATED_SERVER;
+	if (count != sizeof(PadPacketV2)) return SESSION_LOST;
+	if (!processPacket(packet)) return SESSION_FATAL;
+
+	if (STREAM_MODE && !FORCE_POLL)
+	{
+		int result = runStream(sock, life_tick);
+		if (result != SESSION_NO_STREAM) return result;
+		printf("The Vita app doesn't stream input (update it to 1.9 or newer for lower latency), polling instead.\n");
+		fflush(stdout);
+	}
+	return runPolling(sock, life_tick);
 }
 
 int main(int argc,char** argv){
@@ -1116,12 +1291,13 @@ int main(int argc,char** argv){
 	WSAStartup(versionWanted, &wsaData);
 	#endif
 
-	// Usage: VitaPad [--monitor] [--viewer] [Vita IP]
+	// Usage: VitaPad [--monitor] [--viewer] [--poll] [Vita IP]
 	const char* ip_arg = NULL;
 	for (int i = 1; i < argc; i++)
 	{
 		if (strcmp(argv[i], "--monitor") == 0) MONITOR_MODE = true;
 		else if (strcmp(argv[i], "--viewer") == 0) VIEWER_MODE = true;
+		else if (strcmp(argv[i], "--poll") == 0) FORCE_POLL = true;
 		else ip_arg = argv[i];
 	}
 

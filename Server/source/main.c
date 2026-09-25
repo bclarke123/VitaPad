@@ -104,21 +104,21 @@ static void fill_packet(PadPacket *pkg){
 	pkg->click = flags;
 }
 
-static void fill_packet_v2(PadPacketV2 *pkg){
+// Returns the timestamp of the buttons/sticks sample used
+static uint64_t fill_packet_v2(PadPacketV2 *pkg){
 	SceCtrlData pad;
 	SceTouchData front, retro;
 	SceMotionSensorState motion;
 	sceCtrlPeekBufferPositive(0, &pad, 1);
 	sceTouchPeek(SCE_TOUCH_PORT_FRONT, &front, 1);
 	sceTouchPeek(SCE_TOUCH_PORT_BACK, &retro, 1);
-	input_rate_poll(pad.timeStamp);
 	memset(pkg, 0, sizeof(PadPacketV2));
 	pkg->timestamp = (uint32_t)sceKernelGetProcessTimeWide();
 	pkg->battery = battery;
 	// While the remap menu is open the PC gets a neutral pad
 	if (remap_menu_open){
 		pkg->lx = pkg->ly = pkg->rx = pkg->ry = 128;
-		return;
+		return pad.timeStamp;
 	}
 	pkg->buttons = remap_buttons(fast_apply(pad.buttons)) | ps_buttons();
 	pkg->lx = pad.lx;
@@ -137,6 +137,7 @@ static void fill_packet_v2(PadPacketV2 *pkg){
 		pkg->gyro[1] = motion.gyro.y;
 		pkg->gyro[2] = motion.gyro.z;
 	}
+	return pad.timeStamp;
 }
 
 static void handle_client(int client){
@@ -154,7 +155,7 @@ static void handle_client(int client){
 		if (recv_all(client, request, REQUEST_SIZE) < 0) break;
 		int ret;
 		if (memcmp(request, REQUEST_V2, REQUEST_SIZE) == 0){
-			fill_packet_v2(&pkg_v2);
+			input_rate_poll(fill_packet_v2(&pkg_v2));
 			ret = send_all(client, &pkg_v2, sizeof(PadPacketV2));
 		}else{
 			fill_packet(&pkg);
@@ -199,6 +200,70 @@ static int server_thread(unsigned int args, void* argp){
 			if (client < 0) break;
 			handle_client(client);
 			sceNetSocketClose(client);
+		}
+		sceNetSocketClose(fd);
+		sceKernelDelayThread(500 * 1000);
+	}
+	return 0;
+}
+
+// Streams input over UDP to the client that sends hellos (see protocol.h): each change goes out right
+// away instead of waiting for the next poll, and a lost packet costs one sample instead of a TCP
+// retransmission stall
+#define STREAM_CHECK_US 1000
+static int stream_thread(unsigned int args, void* argp){
+	char buf[32];
+	for (;;){
+		int fd = create_socket(SCE_NET_SOCK_DGRAM, SCE_NET_IPPROTO_UDP, STREAM_PORT);
+		if (fd < 0){
+			sceKernelDelayThread(1000 * 1000);
+			continue;
+		}
+		SceNetSockaddrIn target;
+		uint64_t last_hello = 0, last_send = 0;
+		PadPacketV2 last;
+		StreamPacket packet;
+		memset(&last, 0, sizeof(last));
+		memset(&packet, 0, sizeof(packet));
+		memcpy(packet.magic, STREAM_MAGIC, 4);
+		for (;;){
+			// Hellos: who to stream to, and whether they still want it
+			SceNetSockaddrIn from;
+			unsigned int fromlen = sizeof(from);
+			int len;
+			while ((len = sceNetRecvfrom(fd, buf, sizeof(buf), SCE_NET_MSG_DONTWAIT, (SceNetSockaddr *)&from, &fromlen)) > 0){
+				if (len >= (int)sizeof(STREAM_HELLO) && memcmp(buf, STREAM_HELLO, sizeof(STREAM_HELLO)) == 0){
+					target = from;
+					last_hello = sceKernelGetProcessTimeWide();
+				}
+				fromlen = sizeof(from);
+			}
+			// The socket can break (e.g. after the Vita resumes from sleep), recreate it
+			if (len < 0 && len != SCE_NET_ERROR_EAGAIN) break;
+
+			uint64_t now = sceKernelGetProcessTimeWide();
+			if (!last_hello || now - last_hello > STREAM_TIMEOUT_MS * 1000ULL){
+				last_hello = 0;
+				sceKernelDelayThread(10 * 1000);
+				continue;
+			}
+
+			// Anything new? Buttons (fast buttons included), sticks, touch and motion all end up in the packet;
+			// the timestamp always changes so it isn't compared
+			PadPacketV2 pkg;
+			fill_packet_v2(&pkg);
+			uint32_t timestamp = pkg.timestamp;
+			pkg.timestamp = last.timestamp;
+			int changed = memcmp(&pkg, &last, sizeof(pkg)) != 0;
+			pkg.timestamp = timestamp;
+			if (changed || now - last_send >= STREAM_MAX_INTERVAL_MS * 1000ULL){
+				packet.seq++;
+				packet.pad = pkg;
+				if (sceNetSendto(fd, &packet, sizeof(packet), 0, (SceNetSockaddr *)&target, sizeof(target)) >= 0) input_rate_stream();
+				last = pkg;
+				last_send = now;
+			}
+			sceKernelDelayThread(STREAM_CHECK_US);
 		}
 		sceNetSocketClose(fd);
 		sceKernelDelayThread(500 * 1000);
@@ -278,6 +343,8 @@ int main(){
 	sceKernelStartThread(thread, 0, NULL);
 	SceUID discovery = sceKernelCreateThread("VitaPad Discovery Thread", &discovery_thread, 0x10000100, 0x4000, 0, 0, NULL);
 	sceKernelStartThread(discovery, 0, NULL);
+	SceUID stream = sceKernelCreateThread("VitaPad Stream Thread", &stream_thread, 0x10000100, 0x4000, 0, 0, NULL);
+	sceKernelStartThread(stream, 0, NULL);
 
 	char vita_ip[32];
 	int has_ip = 0;
@@ -353,7 +420,8 @@ int main(){
 			InputRates rates;
 			input_rate_get(&rates);
 			vita2d_pgf_draw_textf(debug_font, 2, 480, text_color, 1.0, "Input updates/s: buttons & sticks %d, touch %d, motion %d", rates.ctrl, rates.touch, rates.motion);
-			if (connected) vita2d_pgf_draw_textf(debug_font, 2, 500, text_color, 1.0, "PC polls/s: %d (%d with new button & stick data)", rates.polls, rates.fresh);
+			if (rates.streamed) vita2d_pgf_draw_textf(debug_font, 2, 500, text_color, 1.0, "Streaming to the PC: %d packets/s (UDP)", rates.streamed);
+			else if (connected) vita2d_pgf_draw_textf(debug_font, 2, 500, text_color, 1.0, "PC polls/s: %d (%d with new button & stick data)", rates.polls, rates.fresh);
 			FastButtonsStats fast;
 			if (fast_stats(&fast)){
 				const int y = 520;
