@@ -118,6 +118,8 @@ Many PC games only support Xbox controllers (XInput) and ignore a DualShock 4 un
 
 Mapping: Cross/Circle/Square/Triangle = A/B/X/Y (same positions), Vita L/R = LT/RT, front touch upper corners = LB/RB, lower corners = LS/RS (stick clicks), Start = Start, Select = Back, PS = Guide. Buttons remapped on the Vita to L1/R1/L3/R3 become LB/RB/LS/RS.
 
+Known limitation (Windows): Steam doesn't see the Guide button of ViGEm's virtual Xbox 360 controller (whether "Steam Input for Xbox controllers" is on or off), so PS won't open Steam's menu in this mode, although other programs see it (e.g. button 16 on https://hardwaretester.com/gamepad). For Steam, use the DualShock 4 mode (`VIGEM_MODE` 1): Steam supports it fully, PS button, gyro and touchpad included, and translates it for every game. Xbox mode is for games outside Steam.
+
 Default vJoy mapping for the front touchscreen: upper corners = LB/RB (buttons 5/6), lower corners = L3/R3 (buttons 9/10, only if the vJoy device has 10 or more buttons, otherwise the whole left/right halves are LB/RB).
 
 ## Footage

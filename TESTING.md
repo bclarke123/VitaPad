@@ -164,7 +164,7 @@ Windows: `VIGEM_MODE` 2 in windows.xml. Linux: `UINPUT_MODE` 1 in linux.xml (che
 |---|----|--------|
 | 3b.1 | Start the client | "STARTING IN VIGEM MODE (Xbox 360 controller)" / "Virtual Xbox 360 controller mode"; a new Xbox 360 controller appears (Windows: "Controller (XBOX 360 For Windows)" in Set up USB game controllers; Linux: `evtest` lists "Microsoft X-Box 360 pad") |
 | 3b.2 | Cross, Circle, Square, Triangle | A, B, X, Y |
-| 3b.3 | D-pad, Start, Select, PS | D-pad, Start, Back, Guide |
+| 3b.3 | D-pad, Start, Select, PS | D-pad, Start, Back, Guide (button 16 on hardwaretester.com; on Windows, Steam doesn't see Guide from ViGEm, a known limitation) |
 | 3b.4 | Vita L/R | LT/RT fully pressed |
 | 3b.5 | Front touch upper corners, lower corners | LB/RB, left/right stick clicks |
 | 3b.6 | Both sticks to every edge | Full range, up is up, centered at rest |
