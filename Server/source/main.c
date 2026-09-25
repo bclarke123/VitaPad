@@ -316,6 +316,9 @@ int main(){
 		if (remap_menu_open) remap_menu_update(pad.buttons);
 		ps_update();
 
+		// Syscon button experiment: only while its results are on screen
+		input_rate_experiment(!screen_off && !remap_menu_open);
+
 		vita2d_start_drawing();
 		vita2d_clear_screen();
 		if (remap_menu_open){
@@ -351,6 +354,11 @@ int main(){
 			input_rate_get(&rates);
 			vita2d_pgf_draw_textf(debug_font, 2, 480, text_color, 1.0, "Input updates/s: buttons & sticks %d, touch %d, motion %d", rates.ctrl, rates.touch, rates.motion);
 			if (connected) vita2d_pgf_draw_textf(debug_font, 2, 500, text_color, 1.0, "PC polls/s: %d (%d with new button & stick data)", rates.polls, rates.fresh);
+			LatencyStats lat;
+			if (!input_rate_experiment_get(&lat)) vita2d_pgf_draw_text(debug_font, 2, 520, text_color, 1.0, "Direct button read: unavailable");
+			else if (lat.matched == 0) vita2d_pgf_draw_textf(debug_font, 2, 520, text_color, 1.0, "Direct button read: press buttons quickly (read takes %d us)", lat.read_us);
+			else vita2d_pgf_draw_textf(debug_font, 2, 520, text_color, 1.0, "Direct read %.1f ms earlier (min %.1f, max %.1f), %d changes, %d unmatched, read %d/%d us",
+				lat.avg_us / 1000.0f, lat.min_us / 1000.0f, lat.max_us / 1000.0f, lat.matched, lat.unmatched, lat.read_us, lat.read_max_us);
 		}
 		vita2d_end_drawing();
 		vita2d_wait_rendering_done();

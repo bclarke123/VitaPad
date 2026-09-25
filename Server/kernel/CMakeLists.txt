@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 # Kernel module: lets the app read the PS button (loaded at runtime, needs "Enable Unsafe Homebrew")
-add_executable(vitapad_kernel main.c usb.c)
+add_executable(vitapad_kernel main.c usb.c latency.c)
 target_link_libraries(vitapad_kernel
   SceCtrlForDriver_stub
   SceSysclibForDriver_stub
@@ -9,6 +9,7 @@ target_link_libraries(vitapad_kernel
   SceThreadmgrForDriver_stub
   SceUdcdForDriver_stub
   SceCpuForDriver_stub
+  taihenModuleUtils_stub
 )
 set_target_properties(vitapad_kernel PROPERTIES LINK_FLAGS "-nostdlib")
 target_compile_options(vitapad_kernel PRIVATE -Wall -O2)

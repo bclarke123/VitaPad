@@ -116,6 +116,7 @@ The bottom of the Vita's main screen shows how often the Vita really updates its
 | 1f.1 | Open VitaPad, don't touch anything | "Input updates/s": note the buttons & sticks, touch and motion numbers (they count updates even when nothing changes) |
 | 1f.2 | Connect the PC client (`--monitor` is fine) | "PC polls/s" is about the client's pkt/s; the "with new data" number is at most the buttons & sticks rate |
 | 1f.3 | Switch Connection to USB and back | The input rates don't change with the connection |
+| 1f.4 | With Unsafe Homebrew on, tap buttons (face buttons, D-pad, L/R, Start/Select) quickly, about 50 times | "Direct read X ms earlier": how much sooner the system controller chip (syscon) reports a button than the normal controller API. Note the average, min/max, unmatched count and read time |
 
 ## 3. Controller output (Windows, fake Vita or real Vita)
 
