@@ -1,4 +1,6 @@
 <!-- If you want to change mapping, look here: http://www.philipstorr.id.au/pcbook/book3/scancode.htm -->
+<!-- 1 = the Vita streams input over UDP as soon as it changes (lowest latency, needs Vita app 1.9+), 0 = poll it over TCP. Older Vita apps are polled either way -->
+<STREAM_MODE>1</STREAM_MODE>
 
 <VIGEM_MODE>0</VIGEM_MODE>
 <!-- ViGEm (DualShock 4) touch panels: 0 = unused, 1 = buttons (upper corners L1/R1, lower corners L3/R3), 2 = DS4 touchpad, 3 = DS4 touchpad click -->

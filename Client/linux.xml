@@ -1,4 +1,6 @@
 <!-- If you want to change mapping, look at /usr/include/X11/keysymdef.h -->
+<!-- 1 = the Vita streams input over UDP as soon as it changes (lowest latency, needs Vita app 1.9+), 0 = poll it over TCP. Older Vita apps are polled either way -->
+<STREAM_MODE>1</STREAM_MODE>
 
 <KEY_DOWN>0x0053</KEY_DOWN>
 <KEY_UP>0x0057</KEY_UP>

@@ -18,6 +18,8 @@
 #include "remap.h"
 #include "psbutton.h"
 #include "usbmode.h"
+#include "inputrate.h"
+#include "fastinput.h"
 
 #define NET_INIT_SIZE 1*1024*1024
 
@@ -82,6 +84,7 @@ static void fill_packet(PadPacket *pkg){
 	sceCtrlPeekBufferPositive(0, &pad, 1);
 	sceTouchPeek(SCE_TOUCH_PORT_FRONT, &front, 1);
 	sceTouchPeek(SCE_TOUCH_PORT_BACK, &retro, 1);
+	input_rate_poll(pad.timeStamp);
 	// While the remap menu is open the PC gets a neutral pad
 	if (remap_menu_open){
 		memset(pkg, 0, sizeof(PadPacket));
@@ -89,7 +92,7 @@ static void fill_packet(PadPacket *pkg){
 		return;
 	}
 	memcpy(pkg, &pad.buttons, 8); // Buttons + analogs state
-	pkg->buttons = remap_buttons(pad.buttons);
+	pkg->buttons = remap_buttons(fast_apply(pad.buttons));
 	pkg->tx = front.report[0].x;
 	pkg->ty = front.report[0].y;
 	uint8_t flags = NO_INPUT;
@@ -101,7 +104,8 @@ static void fill_packet(PadPacket *pkg){
 	pkg->click = flags;
 }
 
-static void fill_packet_v2(PadPacketV2 *pkg){
+// Returns the timestamp of the buttons/sticks sample used
+static uint64_t fill_packet_v2(PadPacketV2 *pkg){
 	SceCtrlData pad;
 	SceTouchData front, retro;
 	SceMotionSensorState motion;
@@ -114,9 +118,9 @@ static void fill_packet_v2(PadPacketV2 *pkg){
 	// While the remap menu is open the PC gets a neutral pad
 	if (remap_menu_open){
 		pkg->lx = pkg->ly = pkg->rx = pkg->ry = 128;
-		return;
+		return pad.timeStamp;
 	}
-	pkg->buttons = remap_buttons(pad.buttons) | ps_buttons();
+	pkg->buttons = remap_buttons(fast_apply(pad.buttons)) | ps_buttons();
 	pkg->lx = pad.lx;
 	pkg->ly = pad.ly;
 	pkg->rx = pad.rx;
@@ -133,6 +137,7 @@ static void fill_packet_v2(PadPacketV2 *pkg){
 		pkg->gyro[1] = motion.gyro.y;
 		pkg->gyro[2] = motion.gyro.z;
 	}
+	return pad.timeStamp;
 }
 
 static void handle_client(int client){
@@ -150,7 +155,7 @@ static void handle_client(int client){
 		if (recv_all(client, request, REQUEST_SIZE) < 0) break;
 		int ret;
 		if (memcmp(request, REQUEST_V2, REQUEST_SIZE) == 0){
-			fill_packet_v2(&pkg_v2);
+			input_rate_poll(fill_packet_v2(&pkg_v2));
 			ret = send_all(client, &pkg_v2, sizeof(PadPacketV2));
 		}else{
 			fill_packet(&pkg);
@@ -195,6 +200,70 @@ static int server_thread(unsigned int args, void* argp){
 			if (client < 0) break;
 			handle_client(client);
 			sceNetSocketClose(client);
+		}
+		sceNetSocketClose(fd);
+		sceKernelDelayThread(500 * 1000);
+	}
+	return 0;
+}
+
+// Streams input over UDP to the client that sends hellos (see protocol.h): each change goes out right
+// away instead of waiting for the next poll, and a lost packet costs one sample instead of a TCP
+// retransmission stall
+#define STREAM_CHECK_US 1000
+static int stream_thread(unsigned int args, void* argp){
+	char buf[32];
+	for (;;){
+		int fd = create_socket(SCE_NET_SOCK_DGRAM, SCE_NET_IPPROTO_UDP, STREAM_PORT);
+		if (fd < 0){
+			sceKernelDelayThread(1000 * 1000);
+			continue;
+		}
+		SceNetSockaddrIn target;
+		uint64_t last_hello = 0, last_send = 0;
+		PadPacketV2 last;
+		StreamPacket packet;
+		memset(&last, 0, sizeof(last));
+		memset(&packet, 0, sizeof(packet));
+		memcpy(packet.magic, STREAM_MAGIC, 4);
+		for (;;){
+			// Hellos: who to stream to, and whether they still want it
+			SceNetSockaddrIn from;
+			unsigned int fromlen = sizeof(from);
+			int len;
+			while ((len = sceNetRecvfrom(fd, buf, sizeof(buf), SCE_NET_MSG_DONTWAIT, (SceNetSockaddr *)&from, &fromlen)) > 0){
+				if (len >= (int)sizeof(STREAM_HELLO) && memcmp(buf, STREAM_HELLO, sizeof(STREAM_HELLO)) == 0){
+					target = from;
+					last_hello = sceKernelGetProcessTimeWide();
+				}
+				fromlen = sizeof(from);
+			}
+			// The socket can break (e.g. after the Vita resumes from sleep), recreate it
+			if (len < 0 && len != SCE_NET_ERROR_EAGAIN) break;
+
+			uint64_t now = sceKernelGetProcessTimeWide();
+			if (!last_hello || now - last_hello > STREAM_TIMEOUT_MS * 1000ULL){
+				last_hello = 0;
+				sceKernelDelayThread(10 * 1000);
+				continue;
+			}
+
+			// Anything new? Buttons (fast buttons included), sticks, touch and motion all end up in the packet;
+			// the timestamp always changes so it isn't compared
+			PadPacketV2 pkg;
+			fill_packet_v2(&pkg);
+			uint32_t timestamp = pkg.timestamp;
+			pkg.timestamp = last.timestamp;
+			int changed = memcmp(&pkg, &last, sizeof(pkg)) != 0;
+			pkg.timestamp = timestamp;
+			if (changed || now - last_send >= STREAM_MAX_INTERVAL_MS * 1000ULL){
+				packet.seq++;
+				packet.pad = pkg;
+				if (sceNetSendto(fd, &packet, sizeof(packet), 0, (SceNetSockaddr *)&target, sizeof(target)) >= 0) input_rate_stream();
+				last = pkg;
+				last_send = now;
+			}
+			sceKernelDelayThread(STREAM_CHECK_US);
 		}
 		sceNetSocketClose(fd);
 		sceKernelDelayThread(500 * 1000);
@@ -249,6 +318,7 @@ int main(){
 	remap_load();
 	ps_init();
 	usb_init();
+	input_rate_init();
 
 	// Initializing graphics stuffs
 	vita2d_init();
@@ -273,6 +343,8 @@ int main(){
 	sceKernelStartThread(thread, 0, NULL);
 	SceUID discovery = sceKernelCreateThread("VitaPad Discovery Thread", &discovery_thread, 0x10000100, 0x4000, 0, 0, NULL);
 	sceKernelStartThread(discovery, 0, NULL);
+	SceUID stream = sceKernelCreateThread("VitaPad Stream Thread", &stream_thread, 0x10000100, 0x4000, 0, 0, NULL);
+	sceKernelStartThread(stream, 0, NULL);
 
 	char vita_ip[32];
 	int has_ip = 0;
@@ -312,6 +384,8 @@ int main(){
 		if (remap_menu_open) remap_menu_update(pad.buttons);
 		ps_update();
 
+		fast_update();
+
 		vita2d_start_drawing();
 		vita2d_clear_screen();
 		if (remap_menu_open){
@@ -319,7 +393,7 @@ int main(){
 		}
 		// With the screen off we draw a plain black frame: OLED pixels are off, so no burn-in
 		else if (!screen_off){
-			vita2d_pgf_draw_text(debug_font, 2, 20, text_color, 1.0, "VitaPad v.1.8 by Rinnegatamante");
+			vita2d_pgf_draw_text(debug_font, 2, 20, text_color, 1.0, "VitaPad v.1.9 by Rinnegatamante");
 			if (has_ip) vita2d_pgf_draw_textf(debug_font, 2, 60, text_color, 1.0, "Listening on:\nIP: %s\nPort: %d", vita_ip, GAMEPAD_PORT);
 			else vita2d_pgf_draw_text(debug_font, 2, 60, text_color, 1.0, "Waiting for Wi-Fi connection...");
 			vita2d_pgf_draw_textf(debug_font, 2, 200, text_color, 1.0, "Status: %s", connected ? "Connected!" : "Waiting connection...");
@@ -343,6 +417,20 @@ int main(){
 			vita2d_pgf_draw_textf(debug_font, 2, 400, text_color, 1.0, "@Sarkies_Proxy - ArkSource - Freddy Parra");
 			vita2d_pgf_draw_textf(debug_font, 2, 420, text_color, 1.0, "RaveHeart - Tain Sueiras - drd7of14 - psymu");
 			vita2d_pgf_draw_textf(debug_font, 2, 440, text_color, 1.0, "The Vita3K project - nullobject - polytoad");
+			InputRates rates;
+			input_rate_get(&rates);
+			vita2d_pgf_draw_textf(debug_font, 2, 480, text_color, 1.0, "Input updates/s: buttons & sticks %d, touch %d, motion %d", rates.ctrl, rates.touch, rates.motion);
+			if (rates.streamed) vita2d_pgf_draw_textf(debug_font, 2, 500, text_color, 1.0, "Streaming to the PC: %d packets/s (UDP)", rates.streamed);
+			else if (connected) vita2d_pgf_draw_textf(debug_font, 2, 500, text_color, 1.0, "PC polls/s: %d (%d with new button & stick data)", rates.polls, rates.fresh);
+			FastButtonsStats fast;
+			if (fast_stats(&fast)){
+				const int y = 520;
+				if (!fast_enabled()) vita2d_pgf_draw_text(debug_font, 2, y, text_color, 1.0, "Fast buttons: off (change it in the remap menu)");
+				else if (!fast.available) vita2d_pgf_draw_text(debug_font, 2, y, text_color, 1.0, "Fast buttons: unavailable on this firmware");
+				else if (!fast.running || fast.learned < 12) vita2d_pgf_draw_text(debug_font, 2, y, text_color, 1.0, "Fast buttons: starting...");
+				else vita2d_pgf_draw_textf(debug_font, 2, y, text_color, 1.0, "Fast buttons: %.1f ms sooner (%d changes), %d reads/s of %d us (max %d), %d fallbacks",
+					fast.avg_us / 1000.0f, fast.matched, fast.reads_per_s, fast.read_us, fast.read_max_us, fast.fallbacks);
+			}
 		}
 		vita2d_end_drawing();
 		vita2d_wait_rendering_done();

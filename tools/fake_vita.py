@@ -16,6 +16,8 @@ Usage:
   python3 fake_vita.py --drop-every 5     # close the connection every 5 s (tests reconnection)
   python3 fake_vita.py --legacy           # behave like an old Vita app (tests the "outdated" message)
   python3 fake_vita.py --no-discovery     # ignore discovery (tests the saved IP / manual IP paths)
+  python3 fake_vita.py --no-stream        # don't stream over UDP, like Vita apps before 1.9 (tests the polling fallback)
+  python3 fake_vita.py --stream-loss 0.2  # drop 20% of the streamed packets (tests loss handling)
 """
 
 import argparse
@@ -26,6 +28,8 @@ import threading
 import time
 
 PORT = 5000
+STREAM_PORT = 5001
+STREAM_RATE = 200  # packets per second, about what a real Vita streams
 BUTTONS = [
     ("SELECT", 0x0001), ("START", 0x0008), ("UP", 0x0010), ("RIGHT", 0x0020),
     ("DOWN", 0x0040), ("LEFT", 0x0080), ("L", 0x0100), ("R", 0x0200),
@@ -81,6 +85,35 @@ def discovery():
             s.sendto(b"VITAPAD_HERE", addr)
 
 
+def stream(loss):
+    """Streams StreamPackets to whoever sends hellos, like the Vita app 1.9+."""
+    import random
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind(("0.0.0.0", STREAM_PORT))
+    s.settimeout(1.0 / STREAM_RATE)
+    target, last_hello, seq = None, 0.0, 0
+    start = time.time()
+    while True:
+        try:
+            data, addr = s.recvfrom(64)
+            if data.startswith(b"VPAD_STREAM\0"):
+                if target != addr:
+                    print(f"Streaming to {addr[0]}:{addr[1]}")
+                target, last_hello = addr, time.time()
+        except socket.timeout:
+            pass
+        if target is None or time.time() - last_hello > 3:
+            if target is not None:
+                print("No more hellos, stopping the stream")
+            target = None
+            continue
+        seq = (seq + 1) & 0xFFFFFFFF
+        if loss and random.random() < loss:
+            continue
+        s.sendto(b"VPS1" + struct.pack("<I", seq) + packet_v2(time.time() - start), target)
+
+
 def recv_exact(conn, n):
     data = b""
     while len(data) < n:
@@ -96,10 +129,14 @@ def main():
     parser.add_argument("--legacy", action="store_true", help="act like an old Vita app")
     parser.add_argument("--drop-every", type=float, default=0, help="drop the connection every N seconds")
     parser.add_argument("--no-discovery", action="store_true", help="don't answer discovery")
+    parser.add_argument("--no-stream", action="store_true", help="don't stream over UDP (Vita app before 1.9)")
+    parser.add_argument("--stream-loss", type=float, default=0, help="fraction of streamed packets to drop")
     args = parser.parse_args()
 
     if not args.no_discovery:
         threading.Thread(target=discovery, daemon=True).start()
+    if not args.no_stream and not args.legacy:
+        threading.Thread(target=stream, args=(args.stream_loss,), daemon=True).start()
     server = socket.socket()
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind(("0.0.0.0", PORT))

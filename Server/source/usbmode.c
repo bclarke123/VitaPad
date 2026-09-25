@@ -10,6 +10,7 @@
 #include "psbutton.h"
 #include "remap.h"
 #include "usb.h"
+#include "fastinput.h"
 
 // From the kernel module (weak imports: resolved only once the module is loaded)
 int vitapadKernelUsbStart(int mode);
@@ -84,7 +85,7 @@ static int read_input(Input *in){
 
 	SceCtrlData pad;
 	sceCtrlPeekBufferPositive(0, &pad, 1);
-	in->buttons = remap_buttons(pad.buttons) | ps_buttons();
+	in->buttons = remap_buttons(fast_apply(pad.buttons)) | ps_buttons();
 	for (int i = 0; i < (int)(sizeof(map) / sizeof(map[0])); i++)
 		if (in->buttons & map[i].vita) in->usb_buttons |= map[i].usb;
 	in->usb_buttons |= touch_buttons();

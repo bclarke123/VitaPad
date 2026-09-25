@@ -6,6 +6,7 @@
 #include "remap.h"
 #include "psbutton.h"
 #include "usbmode.h"
+#include "fastinput.h"
 
 #define REMAP_DIR "ux0:data/VitaPad"
 #define REMAP_FILE REMAP_DIR "/remap.txt"
@@ -33,10 +34,11 @@ static const Button targets[] = {
 };
 #define TARGETS_NUM (sizeof(targets) / sizeof(targets[0]))
 
-// The menu has one row per source plus the PS button setting
-#define ROWS_NUM (SOURCES_NUM + 2)
+// The menu has one row per source plus the settings
+#define ROWS_NUM (SOURCES_NUM + 3)
 #define PS_ROW SOURCES_NUM
 #define CONNECTION_ROW (SOURCES_NUM + 1)
+#define FAST_ROW (SOURCES_NUM + 2)
 
 #define ROW_Y(row) (116 + (row) * 28)
 
@@ -52,6 +54,7 @@ static uint32_t old_buttons = 0;
 static void reset_mapping(void){
 	for (int i = 0; i < (int)SOURCES_NUM; i++) mapping[i] = i;
 	ps_set_mode(PS_MODE_DOUBLE_TAP);
+	fast_set_enabled(1);
 }
 
 static int find(const Button *list, int num, const char *name){
@@ -79,6 +82,10 @@ void remap_load(void){
 				if (strcmp(eq + 1, usb_connection_id(c)) == 0) usb_set_connection(c);
 			continue;
 		}
+		if (strcmp(line, "FastButtons") == 0){
+			fast_set_enabled(strcmp(eq + 1, "Off") != 0);
+			continue;
+		}
 		if (strcmp(line, "PSButton") == 0){
 			for (int m = 0; m < PS_MODES_NUM; m++)
 				if (strcmp(eq + 1, ps_mode_id(m)) == 0) ps_set_mode(m);
@@ -98,6 +105,7 @@ static void remap_save(void){
 	if (f == NULL) return;
 	for (int i = 0; i < (int)SOURCES_NUM; i++) fprintf(f, "%s=%s\n", sources[i].name, targets[mapping[i]].name);
 	fprintf(f, "PSButton=%s\n", ps_mode_id(ps_mode()));
+	fprintf(f, "FastButtons=%s\n", fast_enabled() ? "On" : "Off");
 	fprintf(f, "Connection=%s\n", usb_connection_id(usb_connection()));
 	fclose(f);
 }
@@ -130,7 +138,9 @@ int remap_menu_update(uint32_t buttons){
 
 	if (pressed & SCE_CTRL_UP) selected = (selected + ROWS_NUM - 1) % ROWS_NUM;
 	if (pressed & SCE_CTRL_DOWN) selected = (selected + 1) % ROWS_NUM;
-	if (selected == CONNECTION_ROW){
+	if (selected == FAST_ROW){
+		if ((pressed & (SCE_CTRL_LEFT | SCE_CTRL_RIGHT)) && ps_available()) fast_set_enabled(!fast_enabled());
+	}else if (selected == CONNECTION_ROW){
 		if (ps_available()){
 			if (pressed & SCE_CTRL_LEFT) usb_set_connection((usb_connection() + CONNECTIONS_NUM - 1) % CONNECTIONS_NUM);
 			if (pressed & SCE_CTRL_RIGHT) usb_set_connection((usb_connection() + 1) % CONNECTIONS_NUM);
@@ -189,4 +199,12 @@ void remap_menu_draw(vita2d_pgf *font){
 	vita2d_pgf_draw_text(font, 200, y, dim, 1.0, "->");
 	if (selected == CONNECTION_ROW && available) vita2d_pgf_draw_textf(font, 260, y, accent, 1.0, "<  %s  >", connection);
 	else vita2d_pgf_draw_text(font, 260, y, available ? white : dim, 1.0, connection);
+
+	y = ROW_Y(FAST_ROW);
+	const char *fast = !available ? "Normal (fast buttons need Unsafe Homebrew)" : fast_enabled() ? "Fast: read directly, about 10 ms sooner" : "Normal: once per frame";
+	if (selected == FAST_ROW) vita2d_draw_rectangle(12, y - 21, 936, 28, RGBA8(0x2B, 0x30, 0x40, 0xFF));
+	vita2d_pgf_draw_text(font, 30, y, selected == FAST_ROW ? accent : white, 1.0, "Buttons");
+	vita2d_pgf_draw_text(font, 200, y, dim, 1.0, "->");
+	if (selected == FAST_ROW && available) vita2d_pgf_draw_textf(font, 260, y, accent, 1.0, "<  %s  >", fast);
+	else vita2d_pgf_draw_text(font, 260, y, available ? white : dim, 1.0, fast);
 }

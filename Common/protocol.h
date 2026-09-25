@@ -7,6 +7,7 @@
 
 #define GAMEPAD_PORT 5000 // TCP, input polling
 #define DISCOVERY_PORT 5000 // UDP, automatic discovery of the Vita on the LAN
+#define STREAM_PORT 5001 // UDP, input streaming (see below)
 
 // Client -> server discovery request (UDP broadcast) and server reply
 #define DISCOVERY_REQUEST "VITAPAD_DISCOVER"
@@ -66,5 +67,23 @@ typedef struct {
 	uint8_t battery;    // Vita battery percentage
 	uint8_t reserved2[3];
 } PadPacketV2;
+
+// Streaming (Vita app 1.9+): instead of waiting for polls, the Vita sends a StreamPacket over UDP as soon
+// as there's new input (a button change, a new stick/touch/motion sample), and at least every
+// STREAM_MAX_INTERVAL_MS. The client keeps its TCP connection (version check, keepalive polls) and
+// sends STREAM_HELLO to STREAM_PORT every STREAM_HELLO_MS from its UDP socket; the Vita streams to
+// the sender of the latest hello and stops STREAM_TIMEOUT_MS after the hellos stop.
+// Vita apps without streaming don't answer: the client then polls over TCP as before.
+#define STREAM_HELLO "VPAD_STREAM" // Sent with its NUL: 12 bytes
+#define STREAM_MAGIC "VPS1"
+#define STREAM_HELLO_MS 250
+#define STREAM_TIMEOUT_MS 3000
+#define STREAM_MAX_INTERVAL_MS 20
+
+typedef struct {
+	char magic[4];      // STREAM_MAGIC
+	uint32_t seq;       // +1 every packet: the client drops late (out of order) packets
+	PadPacketV2 pad;
+} StreamPacket;
 
 #pragma pack(pop)
