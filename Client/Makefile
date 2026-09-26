@@ -42,8 +42,8 @@ windows: ViGEmClient.o tinyxml2.o icon.res vJoyInterface.dll
 	g++ -static -static-libgcc -static-libstdc++ \
 		-I VJoySDK/inc -I ViGEmClient/include -I ../Common \
 		-o VitaPad \
-		main.cpp ViGEm.cpp viewer.cpp ViGEmClient.o tinyxml2.o icon.res \
+		main.cpp ViGEm.cpp viewer.cpp xbox.cpp ViGEmClient.o tinyxml2.o icon.res \
 		 $(VJOY_LIB_PATH)/vJoyInterface.lib -lpthread -lws2_32 -lsetupapi
 
 linux: tinyxml2.o
-	g++ -static-libgcc -static-libstdc++ -I ../Common -o VitaPad main.cpp viewer.cpp tinyxml2.o -lX11 -lXtst -lpthread
+	g++ -static-libgcc -static-libstdc++ -I ../Common -o VitaPad main.cpp viewer.cpp xbox.cpp uinput.cpp tinyxml2.o -lX11 -lXtst -lpthread

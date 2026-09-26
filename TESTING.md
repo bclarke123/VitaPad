@@ -156,6 +156,21 @@ With the fake Vita the sequence repeats, so compare against this:
 
 With the real Vita, check the tilt direction: tilt the Vita to the right and the controller in Steam's gyro view should tilt right too. If an axis is mirrored, note which one.
 
+### 3b. Xbox 360 output
+
+Windows: `VIGEM_MODE` 2 in windows.xml. Linux: `UINPUT_MODE` 1 in linux.xml (check `/dev/uinput` access first, see README). Test with https://hardwaretester.com/gamepad, Steam's controller settings, or on Linux `evtest` / `jstest-gtk`.
+
+| # | Do | Expect |
+|---|----|--------|
+| 3b.1 | Start the client | "STARTING IN VIGEM MODE (Xbox 360 controller)" / "Virtual Xbox 360 controller mode"; a new Xbox 360 controller appears (Windows: "Controller (XBOX 360 For Windows)" in Set up USB game controllers; Linux: `evtest` lists "Microsoft X-Box 360 pad") |
+| 3b.2 | Cross, Circle, Square, Triangle | A, B, X, Y |
+| 3b.3 | D-pad, Start, Select, PS | D-pad, Start, Back, Guide (button 16 on hardwaretester.com; on Windows, Steam doesn't see Guide from ViGEm, a known limitation) |
+| 3b.4 | Vita L/R | LT/RT fully pressed |
+| 3b.5 | Front touch upper corners, lower corners | LB/RB, left/right stick clicks |
+| 3b.6 | Both sticks to every edge | Full range, up is up, centered at rest |
+| 3b.7 | A game without Steam Input (e.g. an emulator or a Game Pass/Epic game) | Recognized as an Xbox controller, Xbox button prompts |
+| 3b.8 | Linux without `/dev/uinput` access | Clear error message, falls back to keyboard and mouse |
+
 For vJoy (`VJOY_MODE` 1), use the vJoy Monitor app: front upper corners are buttons 5/6, lower corners 9/10 (with a 10+ button vJoy device).
 
 For keyboard mode (both modes 0), open a text editor: buttons type their mapped keys, the front touch moves the mouse and rear touches click.

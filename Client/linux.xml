@@ -1,6 +1,13 @@
 <!-- If you want to change mapping, look at /usr/include/X11/keysymdef.h -->
 <!-- 1 = the Vita streams input over UDP as soon as it changes (lowest latency, needs Vita app 1.9+), 0 = poll it over TCP. Older Vita apps are polled either way -->
 <STREAM_MODE>1</STREAM_MODE>
+<!-- 1 = virtual Xbox 360 controller (needs access to /dev/uinput, see README), 0 = keyboard and mouse (X11) -->
+<UINPUT_MODE>0</UINPUT_MODE>
+<!-- Xbox controller mode: touch corners act as buttons (upper = LB/RB, lower = LS/RS). 1 = on, 0 = off -->
+<UINPUT_FRONT_TOUCH>1</UINPUT_FRONT_TOUCH>
+<UINPUT_REAR_TOUCH>0</UINPUT_REAR_TOUCH>
+<!-- Xbox controller mode: 1 = Vita L/R act as LB/RB and the upper touch corners as LT/RT -->
+<UINPUT_SWAP_SHOULDERS>0</UINPUT_SWAP_SHOULDERS>
 
 <KEY_DOWN>0x0053</KEY_DOWN>
 <KEY_UP>0x0057</KEY_UP>

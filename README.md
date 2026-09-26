@@ -8,7 +8,7 @@ VitaPad allows you to use your PSVITA as a wireless PC controller. It supports W
 * Install VPK file on PSVITA. VitaPad needs **Enable Unsafe Homebrew** turned on in HENkaku settings (like VitaShell), because it loads a small kernel module to capture the PS button.
 * Open VitaPad on PSVITA
 * Optional: [Install vJoy driver](https://github.com/njz3/vJoy/releases/download/v2.2.0.0/vJoySetup.2.2.0.signed.exe) on Windows PC for vJoy functionality. Need to set `VJOY_MODE` to 1 in windows.xml. Configure the vJoy device with at least 10 buttons to get L3/R3.
-* Optional: [Install ViGEm driver](https://github.com/nefarius/ViGEmBus/releases) on Windows PC for DualShock 4 emulation. Need to set `VIGEM_MODE` to 1 in windows.xml. Touchpad and motion (gyro) support need ViGEmBus 1.17 or newer; on older drivers set `VIGEM_EXTENDED` to 0.
+* Optional: [Install ViGEm driver](https://github.com/nefarius/ViGEmBus/releases) on Windows PC for controller emulation. Set `VIGEM_MODE` in windows.xml to 1 for a DualShock 4 or 2 for an Xbox 360 controller (see [Xbox 360 controller output](#xbox-360-controller-output)). Touchpad and motion (gyro) support need ViGEmBus 1.17 or newer; on older drivers set `VIGEM_EXTENDED` to 0.
 * Open VitaPad on PC (before or after the Vita app, it keeps looking until the Vita shows up). It will find your Vita on the local network by itself and remember it for the next time (saved in `vita_ip.txt`). If it's never found (e.g. your network blocks broadcasts), pass the IP shown on PSVITA on the command line, `VitaPad 192.168.1.20`, or write it in `vita_ip.txt`.
 
 If the connection drops (e.g. Wi-Fi hiccups or the Vita goes to sleep), the PC client releases every pressed input and reconnects automatically.
@@ -101,6 +101,24 @@ ViGEm options in windows.xml:
 - `VIGEM_EXTENDED`: 1 = send touchpad and motion data (needs ViGEmBus 1.17+)
 - `VIGEM_MOTION`: 1 = send gyroscope and accelerometer data
 - `VIGEM_GYRO_SENSITIVITY`: gyroscope multiplier, 1.0 = real rotation speed (e.g. 0.5 for half as sensitive). Applies live when you save the file
+
+### Xbox 360 controller output
+
+Many PC games only support Xbox controllers (XInput) and ignore a DualShock 4 unless Steam Input or DS4Windows translates it. The client can create a virtual **Xbox 360 controller** instead, which works everywhere (no touchpad or motion: an Xbox 360 pad has neither).
+
+- **Windows**: set `VIGEM_MODE` to 2 in windows.xml (needs the ViGEm driver). `VIGEM_FRONT_TOUCH`/`VIGEM_REAR_TOUCH` set to 1 and `VIGEM_SWAP_SHOULDERS` apply.
+- **Linux**: set `UINPUT_MODE` to 1 in linux.xml. The client creates the controller through uinput, so it doesn't need X11 (works on Wayland too), but it needs write access to `/dev/uinput`. Installing Steam's `steam-devices` package usually grants it; otherwise add a udev rule and reload it (then log out and back in):
+
+  ```
+  echo 'KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"' | sudo tee /etc/udev/rules.d/60-vitapad-uinput.rules
+  sudo udevadm control --reload-rules && sudo udevadm trigger
+  ```
+
+  If `/dev/uinput` doesn't exist, run `sudo modprobe uinput`. `UINPUT_FRONT_TOUCH`, `UINPUT_REAR_TOUCH` and `UINPUT_SWAP_SHOULDERS` work like the ViGEm options.
+
+Mapping: Cross/Circle/Square/Triangle = A/B/X/Y (same positions), Vita L/R = LT/RT, front touch upper corners = LB/RB, lower corners = LS/RS (stick clicks), Start = Start, Select = Back, PS = Guide. Buttons remapped on the Vita to L1/R1/L3/R3 become LB/RB/LS/RS.
+
+Known limitation (Windows): Steam doesn't see the Guide button of ViGEm's virtual Xbox 360 controller (whether "Steam Input for Xbox controllers" is on or off), so PS won't open Steam's menu in this mode, although other programs see it (e.g. button 16 on https://hardwaretester.com/gamepad). For Steam, use the DualShock 4 mode (`VIGEM_MODE` 1): Steam supports it fully, PS button, gyro and touchpad included, and translates it for every game. Xbox mode is for games outside Steam.
 
 Default vJoy mapping for the front touchscreen: upper corners = LB/RB (buttons 5/6), lower corners = L3/R3 (buttons 9/10, only if the vJoy device has 10 or more buttons, otherwise the whole left/right halves are LB/RB).
 

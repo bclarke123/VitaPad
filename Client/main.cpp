@@ -103,6 +103,12 @@ uint16_t KEY_L1, KEY_R1, KEY_L3, KEY_R3, KEY_PS; // Optional (0 = unmapped), for
 
 #ifdef __linux__
 Display* display;
+
+// Virtual Xbox 360 pad through uinput instead of keyboard/mouse
+#include "uinput.h"
+unsigned int UINPUT_MODE = 0; // 1 = Xbox 360 pad (read at startup)
+bool UINPUT_ACTIVE = false;
+XboxOptions UINPUT_OPTIONS = { true, false, false };
 #endif
 
 // VJoy
@@ -276,6 +282,13 @@ void loadConfig(const char* path)
 	KEY_PS = readOptionalKey(doc, "KEY_PS", KEY_PS);
 
 	STREAM_MODE = readBool(doc, "STREAM_MODE", STREAM_MODE);
+
+#ifdef __linux__
+	UINPUT_MODE = readUnsigned(doc, "UINPUT_MODE", UINPUT_MODE);
+	UINPUT_OPTIONS.front_touch_buttons = readBool(doc, "UINPUT_FRONT_TOUCH", UINPUT_OPTIONS.front_touch_buttons);
+	UINPUT_OPTIONS.rear_touch_buttons = readBool(doc, "UINPUT_REAR_TOUCH", UINPUT_OPTIONS.rear_touch_buttons);
+	UINPUT_OPTIONS.swap_shoulders = readBool(doc, "UINPUT_SWAP_SHOULDERS", UINPUT_OPTIONS.swap_shoulders);
+#endif
 
 #ifdef __WIN32__
 	if (readBool(doc, "VJOY_MODE", false)) VJOY_MODE = true;
@@ -1070,7 +1083,34 @@ static bool processPacket(const PadPacketV2& packet)
 			return false;
 		}
 	}
+	else if (VIGEM_MODE == VIGEM_DEVICE_X360)
+	{
+		XboxOptions options = {
+			VIGEM_OPTIONS.front_touch == VIGEM_TOUCH_BUTTONS,
+			VIGEM_OPTIONS.rear_touch == VIGEM_TOUCH_BUTTONS,
+			VIGEM_OPTIONS.swap_shoulders,
+		};
+		XboxState state;
+		vitaToXbox(&packet, &options, &state);
+		if (!vgSubmitX360(&state))
+		{
+			printf("\nERROR: Feeding VIGEM failed, please restart the app.\n");
+			return false;
+		}
+	}
 	else
+	#elif defined(__linux__)
+	if (UINPUT_ACTIVE)
+	{
+		XboxState state;
+		vitaToXbox(&packet, &UINPUT_OPTIONS, &state);
+		if (!uiSubmit(&state))
+		{
+			printf("\nERROR: Feeding the virtual controller failed, please restart the app.\n");
+			return false;
+		}
+	}
+	else if (display)
 	#endif
 	{
 		processKeyboard(data, olddata);
@@ -1089,7 +1129,7 @@ void ControllerCleanup()
         abortVjoy();
         VJOY_MODE = false;
     }
-    else if (VIGEM_MODE == VIGEM_DEVICE_DS4)
+    else if (VIGEM_MODE != VIGEM_DEVICE_NONE)
     {
         vgDestroy();
         VIGEM_MODE = VIGEM_DEVICE_NONE;
@@ -1304,13 +1344,6 @@ int main(int argc,char** argv){
     #ifdef __linux__
     // A dropped connection must not kill the client while sending
     signal(SIGPIPE, SIG_IGN);
-
-    if (!MONITOR_MODE)
-    {
-        display = XOpenDisplay(0);
-        if (display == NULL)
-            exit(1);
-    }
     #endif
 
 	// Loading mapping
@@ -1318,7 +1351,7 @@ int main(int argc,char** argv){
 	loadConfig(CONFIG_FILE);
 	life_tick = getLastModifiedTime(CONFIG_FILE);
 
-	printf("VitaPad Client v1.9 by Rinnegatamante\n\n");
+	printf("VitaPad Client v1.9.1 by Rinnegatamante\n\n");
 	if (MONITOR_MODE)
 	{
 		printf("MONITOR MODE: printing what the Vita sends, no input is emulated.\n\n");
@@ -1327,6 +1360,27 @@ int main(int argc,char** argv){
 		VIGEM_MODE = VIGEM_DEVICE_NONE;
 		#endif
 	}
+	#ifdef __linux__
+	if (!MONITOR_MODE)
+	{
+		if (UINPUT_MODE == 1)
+		{
+			printf("Virtual Xbox 360 controller mode (UINPUT_MODE in linux.xml).\n");
+			UINPUT_ACTIVE = uiInit();
+			if (!UINPUT_ACTIVE) printf("Falling back to keyboard and mouse.\n");
+		}
+		// Keyboard and mouse emulation goes through X11
+		if (!UINPUT_ACTIVE)
+		{
+			display = XOpenDisplay(0);
+			if (display == NULL)
+			{
+				printf("ERROR: Unable to open the X11 display for keyboard and mouse emulation.\n");
+				exit(1);
+			}
+		}
+	}
+	#endif
 	#ifdef __WIN32__
 	if (VJOY_MODE && (VIGEM_MODE != VIGEM_DEVICE_NONE))
 	{
@@ -1337,10 +1391,11 @@ int main(int argc,char** argv){
         printf("!!!STARTING IN VJOY MODE!!!\nEdit the config and restart the application to disable it.\n");
 		initVjoy();
     }
-    else if (VIGEM_MODE == VIGEM_DEVICE_DS4)
+    else if (VIGEM_MODE == VIGEM_DEVICE_DS4 || VIGEM_MODE == VIGEM_DEVICE_X360)
     {
-        printf("!!!STARTING IN VIGEM MODE!!!\nEdit the config and restart the application to disable it.\n");
-        if (!vgInit())
+        printf("!!!STARTING IN VIGEM MODE (%s)!!!\nEdit the config and restart the application to disable it.\n",
+            VIGEM_MODE == VIGEM_DEVICE_X360 ? "Xbox 360 controller" : "DualShock 4");
+        if (!vgInit(VIGEM_MODE))
         {
             printf("ERROR: An error occurred while initializing ViGEm. Reverting back to keybinds.\n");
             VIGEM_MODE = VIGEM_DEVICE_NONE;
@@ -1424,6 +1479,7 @@ int main(int argc,char** argv){
 	}
 
     #ifdef __linux__
+    if (UINPUT_ACTIVE) uiDestroy();
     if (display) XCloseDisplay(display);
     #elif defined(__WIN32__)
     ControllerCleanup();

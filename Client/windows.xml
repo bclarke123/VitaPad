@@ -2,6 +2,7 @@
 <!-- 1 = the Vita streams input over UDP as soon as it changes (lowest latency, needs Vita app 1.9+), 0 = poll it over TCP. Older Vita apps are polled either way -->
 <STREAM_MODE>1</STREAM_MODE>
 
+<!-- ViGEm virtual controller: 0 = off (keyboard/mouse or vJoy), 1 = DualShock 4 (touchpad, motion), 2 = Xbox 360 controller (works in every XInput game; no touchpad or motion). Touch corners and VIGEM_SWAP_SHOULDERS apply to both -->
 <VIGEM_MODE>0</VIGEM_MODE>
 <!-- ViGEm (DualShock 4) touch panels: 0 = unused, 1 = buttons (upper corners L1/R1, lower corners L3/R3), 2 = DS4 touchpad, 3 = DS4 touchpad click -->
 <VIGEM_FRONT_TOUCH>1</VIGEM_FRONT_TOUCH>

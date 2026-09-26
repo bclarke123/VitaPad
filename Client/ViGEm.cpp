@@ -30,13 +30,14 @@ void vgDestroy()
     client = NULL;
 }
 
-bool vgInit()
+bool vgInit(unsigned int device)
 {
     do
     {
         if (NULL == (client = vigem_alloc())) break;
         if (!VIGEM_SUCCESS(vigem_connect(client))) break;
-        if (NULL == (target = vigem_target_ds4_alloc())) break;
+        target = device == VIGEM_DEVICE_X360 ? vigem_target_x360_alloc() : vigem_target_ds4_alloc();
+        if (NULL == target) break;
         if (!VIGEM_SUCCESS(vigem_target_add(client, target))) break;
         return true;
     } while (false);
@@ -237,4 +238,18 @@ bool vgSubmit(const PadPacketV2 *packet, const VigemOptions *options)
     DS4_REPORT basic;
     memcpy(&basic, &report.Report, sizeof(DS4_REPORT));
     return VIGEM_SUCCESS(vigem_target_ds4_update(client, target, basic));
+}
+
+bool vgSubmitX360(const XboxState *state)
+{
+    // XboxState uses the XInput layout, which is what an Xbox 360 target takes
+    XUSB_REPORT report;
+    report.wButtons = state->buttons;
+    report.bLeftTrigger = state->lt;
+    report.bRightTrigger = state->rt;
+    report.sThumbLX = state->lx;
+    report.sThumbLY = state->ly;
+    report.sThumbRX = state->rx;
+    report.sThumbRY = state->ry;
+    return VIGEM_SUCCESS(vigem_target_x360_update(client, target, report));
 }
