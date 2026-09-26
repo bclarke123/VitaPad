@@ -54,7 +54,7 @@ jobs:
         working-directory: Client
         run: |
           mkdir -p ../dist/VitaPad-windows
-          cp VitaPad.exe vJoyInterface.dll windows.xml ../dist/VitaPad-windows/
+          cp VitaPad.exe VitaPad-console.exe vJoyInterface.dll windows.xml ../dist/VitaPad-windows/
       - uses: actions/upload-artifact@v4
         with:
           name: VitaPad-windows

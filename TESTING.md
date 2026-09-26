@@ -139,6 +139,22 @@ The bottom of the Vita's main screen shows how often the Vita really updates its
 | 1g.6 | Suspend the Vita (PS, sleep) and wake it | Client reconnects and streams again |
 | 1g.7 | Windows: first run with streaming | No firewall prompt needed for input to arrive |
 
+## 2c. Windows tray app (`VitaPad.exe`)
+
+| # | Do | Expect |
+|---|----|--------|
+| 2c.1 | Start `VitaPad.exe` | Tray icon appears and the window opens: "Looking for your Vita..." |
+| 2c.2 | Open VitaPad on the Vita | "Connected to <IP>", "Streaming (UDP), ~190 packets/s", battery and "Sending as" |
+| 2c.3 | Controller → Xbox 360, then DualShock 4, then Keyboard and mouse (in the window, then in the tray menu) | Each switch applies within a second, no restart: the controller appears/disappears in "Set up USB game controllers" |
+| 2c.4 | Choose Xbox 360 on a PC without ViGEmBus | Red message + "Get the ViGEmBus driver" button, a tray notification; input falls back to keyboard and mouse |
+| 2c.5 | Untick "Low-latency streaming" | Reconnects within a second, now "Polling (TCP)"; tick it again → "Streaming (UDP)" |
+| 2c.6 | Move the gyro slider (DualShock 4 mode), release | `VIGEM_GYRO_SENSITIVITY` in windows.xml changes; gyro speed changes in Steam's gyro view |
+| 2c.7 | Key mapping... → change `VIGEM_MODE` in Notepad and save | The window's Controller follows the file |
+| 2c.8 | Tick "Start VitaPad with Windows", sign out and in | VitaPad starts in the tray (window hidden) and connects |
+| 2c.9 | Close the window, then double-click the icon; start `VitaPad.exe` again | Window hides, reopens; a second start opens the running one instead of a second copy |
+| 2c.10 | Tray menu → Quit | Icon disappears, the virtual controller is removed |
+| 2c.11 | 3D viewer button | Browser opens the viewer, which moves with the Vita |
+
 ## 3. Controller output (Windows, fake Vita or real Vita)
 
 Set `VIGEM_MODE` to 1 in `windows.xml`, run `VitaPad` (without `--monitor`) and open a controller tester: Steam > Settings > Controller > Test Device Inputs, DS4Windows, or https://hardwaretester.com/gamepad.
