@@ -9,11 +9,22 @@ VitaPad allows you to use your PSVITA as a wireless PC controller. It supports W
 * Open VitaPad on PSVITA
 * Optional: [Install vJoy driver](https://github.com/njz3/vJoy/releases/download/v2.2.0.0/vJoySetup.2.2.0.signed.exe) on Windows PC for vJoy functionality. Need to set `VJOY_MODE` to 1 in windows.xml. Configure the vJoy device with at least 10 buttons to get L3/R3.
 * Optional: [Install ViGEm driver](https://github.com/nefarius/ViGEmBus/releases) on Windows PC for controller emulation. Set `VIGEM_MODE` in windows.xml to 1 for a DualShock 4 or 2 for an Xbox 360 controller (see [Xbox 360 controller output](#xbox-360-controller-output)). Touchpad and motion (gyro) support need ViGEmBus 1.17 or newer; on older drivers set `VIGEM_EXTENDED` to 0.
-* Open VitaPad on PC (before or after the Vita app, it keeps looking until the Vita shows up). It will find your Vita on the local network by itself and remember it for the next time (saved in `vita_ip.txt`). If it's never found (e.g. your network blocks broadcasts), pass the IP shown on PSVITA on the command line, `VitaPad 192.168.1.20`, or write it in `vita_ip.txt`.
+* Open VitaPad on PC (before or after the Vita app, it keeps looking until the Vita shows up). On Windows, `VitaPad.exe` lives in the notification area (see [Windows tray app](#windows-tray-app)); `VitaPad-console.exe` is the command line version. It will find your Vita on the local network by itself and remember it for the next time (saved in `vita_ip.txt`). If it's never found (e.g. your network blocks broadcasts), pass the IP shown on PSVITA on the command line, `VitaPad 192.168.1.20`, or write it in `vita_ip.txt`.
 
 If the connection drops (e.g. Wi-Fi hiccups or the Vita goes to sleep), the PC client releases every pressed input and reconnects automatically.
 
 To avoid screen burn-in during long sessions, hold L + R + SELECT for 1 second on the Vita to turn the screen off (black). Do it again to turn it back on.
+
+### Windows tray app
+
+`VitaPad.exe` runs in the notification area (system tray). Click its icon for a small window with:
+
+- the connection status: Vita IP, streaming or polling, packets per second, the Vita's battery, and what the input is sent as
+- **Controller**: Xbox 360 controller or DualShock 4 (both need the [ViGEm driver](https://github.com/nefarius/ViGEmBus/releases)), keyboard and mouse, or vJoy. Switching applies straight away
+- **Low-latency streaming**, **Gyro sensitivity** (DualShock 4) and **Start VitaPad with Windows**
+- **Key mapping...** opens `windows.xml` for everything else, **3D viewer** opens the viewer below
+
+Right-click the icon for the same settings and **Quit**. Closing the window keeps VitaPad running. Settings are saved in `windows.xml`, and changes made to that file by hand apply straight away too. If something's wrong (e.g. the ViGEm driver is missing), the window says so and the icon shows a notification. For `--monitor`, `--viewer` or `--poll`, use `VitaPad-console.exe`.
 
 Run `VitaPad --viewer` to open a live 3D view of your Vita in the browser: it follows the Vita's orientation (gyro + accelerometer), lights up pressed buttons, moves the sticks and shows front and rear touches. It runs alongside the normal controller emulation, only listens on localhost (port 5050), and needs internet the first time to download the 3D engine.
 

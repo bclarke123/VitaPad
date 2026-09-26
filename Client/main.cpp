@@ -40,6 +40,7 @@ typedef int sock_t;
 #include "tinyxml2.h"
 #include "main.h"
 #include "viewer.h"
+#include "client.h"
 
 // Input
 #if defined(__WIN32__) || defined(__CYGWIN__)
@@ -77,6 +78,56 @@ bool FORCE_POLL = false;
 #define KEEPALIVE_MS 250
 // Config file changes are checked this often
 #define CONFIG_CHECK_MS 500
+
+// Live state for the tray app (clientGetStatus)
+static ClientStatus STATUS = { CLIENT_STARTING, "", "poll", 0, 0, 0, "Keyboard and mouse", "" };
+#ifdef __WIN32__
+static CRITICAL_SECTION statusLock;
+#  define STATUS_LOCK() EnterCriticalSection(&statusLock)
+#  define STATUS_UNLOCK() LeaveCriticalSection(&statusLock)
+#else
+#  define STATUS_LOCK()
+#  define STATUS_UNLOCK()
+#endif
+
+static void setState(int state, const char* host)
+{
+	STATUS_LOCK();
+	STATUS.state = state;
+	if (host) snprintf(STATUS.host, sizeof(STATUS.host), "%s", host);
+	if (state != CLIENT_CONNECTED) STATUS.rate = STATUS.max_gap_ms = 0;
+	STATUS_UNLOCK();
+}
+
+static void setError(const char* error)
+{
+	STATUS_LOCK();
+	snprintf(STATUS.error, sizeof(STATUS.error), "%s", error ? error : "");
+	STATUS_UNLOCK();
+	if (error && error[0]) printf("\nERROR: %s\n", error);
+}
+
+void clientGetStatus(ClientStatus* status)
+{
+	STATUS_LOCK();
+	*status = STATUS;
+	STATUS_UNLOCK();
+}
+
+// Set by clientReloadConfig (GUI thread), handled by the client loop
+static volatile bool RELOAD_REQUESTED = false;
+// Set when a setting needs a new session (e.g. streaming turned on/off)
+static volatile bool RECONNECT_REQUESTED = false;
+
+void clientReloadConfig()
+{
+	RELOAD_REQUESTED = true;
+}
+
+const char* clientConfigFile()
+{
+	return CONFIG_FILE;
+}
 
 #define CONNECT_TIMEOUT_MS 2000
 #define SOCKET_TIMEOUT_MS 3000
@@ -121,7 +172,10 @@ int VJOY_DEVID = 0;
 int VJOY_BUTTONS = 0;
 
 #include "ViGEm.h"
-unsigned int VIGEM_MODE = VIGEM_DEVICE_NONE;
+unsigned int VIGEM_MODE = VIGEM_DEVICE_NONE; // Active ViGEm device
+// What the config file asks for (VIGEM_MODE / VJOY_MODE hold what's actually active)
+unsigned int WANT_VIGEM_MODE = VIGEM_DEVICE_NONE;
+bool WANT_VJOY_MODE = false;
 VigemOptions VIGEM_OPTIONS = { VIGEM_TOUCH_BUTTONS, VIGEM_TOUCH_TOUCHPAD, false, true, true, 1.0f };
 
 enum {
@@ -145,7 +199,7 @@ void abortVjoy()
 {
 	VJOY_MODE = false;
 	VJOY_DEVID = 0;
-	printf("\nERROR: An error occurred while initializing VJOY. Reverting back to keybinds.\n");
+	setError("vJoy couldn't be initialized (is it installed, with a free device?). Using keyboard and mouse instead.");
 }
 void initVjoy()
 {
@@ -291,10 +345,9 @@ void loadConfig(const char* path)
 #endif
 
 #ifdef __WIN32__
-	if (readBool(doc, "VJOY_MODE", false)) VJOY_MODE = true;
-	if (readBool(doc, "VJOY_ALTERNATE", false)) VJOY_ALTERNATE = true;
-	unsigned int tmp_int = readUnsigned(doc, "VIGEM_MODE", 0);
-	if (0 != tmp_int) VIGEM_MODE = tmp_int;
+	WANT_VJOY_MODE = readBool(doc, "VJOY_MODE", WANT_VJOY_MODE);
+	VJOY_ALTERNATE = readBool(doc, "VJOY_ALTERNATE", VJOY_ALTERNATE);
+	WANT_VIGEM_MODE = readUnsigned(doc, "VIGEM_MODE", WANT_VIGEM_MODE);
 	VIGEM_OPTIONS.front_touch = readUnsigned(doc, "VIGEM_FRONT_TOUCH", VIGEM_OPTIONS.front_touch);
 	VIGEM_OPTIONS.rear_touch = readUnsigned(doc, "VIGEM_REAR_TOUCH", VIGEM_OPTIONS.rear_touch);
 	VIGEM_OPTIONS.swap_shoulders = readBool(doc, "VIGEM_SWAP_SHOULDERS", VIGEM_OPTIONS.swap_shoulders);
@@ -1006,6 +1059,30 @@ static void printTouches(const char* name, const TouchPoint* points, int num)
 	for (int i = 0; i < num; i++) printf(" (%4d,%4d)", points[i].x, points[i].y);
 }
 
+// Packets per second and longest gap between packets, over the last second
+static void updateStats(const PadPacketV2& packet)
+{
+	static int packets = 0;
+	static uint64_t rate_start = 0, last_packet_us = 0, gap_us = 0;
+	uint64_t now_us = nowUs();
+	if (last_packet_us && now_us - last_packet_us > gap_us) gap_us = now_us - last_packet_us;
+	last_packet_us = now_us;
+	uint64_t now = nowMs();
+	packets++;
+	if (now - rate_start >= 1000)
+	{
+		STATUS_LOCK();
+		STATUS.rate = packets;
+		STATUS.max_gap_ms = (int)(gap_us / 1000);
+		STATUS.battery = packet.battery;
+		STATUS.link = LINK_MODE;
+		STATUS_UNLOCK();
+		packets = 0;
+		rate_start = now;
+		gap_us = 0;
+	}
+}
+
 static void printMonitor(const PadPacketV2& packet)
 {
 	static const struct { uint32_t mask; const char* name; } names[] = {
@@ -1015,28 +1092,14 @@ static void printMonitor(const PadPacketV2& packet)
 		{ SCE_CTRL_L1, "L1" }, { SCE_CTRL_R1, "R1" }, { SCE_CTRL_L3, "L3" }, { SCE_CTRL_R3, "R3" }, { SCE_CTRL_PSBUTTON, "PS" },
 	};
 	static uint64_t last = 0;
-	static int packets = 0;
-	static int rate = 0;
-	static uint64_t rate_start = 0;
-	// Longest wait between two packets over the last second: spikes show up here
-	static uint64_t last_packet_us = 0, gap_us = 0, max_gap_us = 0;
-	uint64_t now_us = nowUs();
-	if (last_packet_us && now_us - last_packet_us > gap_us) gap_us = now_us - last_packet_us;
-	last_packet_us = now_us;
 	uint64_t now = nowMs();
-	packets++;
-	if (now - rate_start >= 1000)
-	{
-		rate = packets;
-		packets = 0;
-		rate_start = now;
-		max_gap_us = gap_us;
-		gap_us = 0;
-	}
 	if (now - last < 200) return;
 	last = now;
 
-	printf("[%4d pkt/s %s, max gap %3d ms] bat %3d%% | L(%3d,%3d) R(%3d,%3d) |", rate, LINK_MODE, (int)(max_gap_us / 1000),
+	ClientStatus status;
+	clientGetStatus(&status);
+	// Longest wait between two packets over the last second: spikes show up here
+	printf("[%4d pkt/s %s, max gap %3d ms] bat %3d%% | L(%3d,%3d) R(%3d,%3d) |", status.rate, LINK_MODE, status.max_gap_ms,
 		packet.battery, packet.lx, packet.ly, packet.rx, packet.ry);
 	printTouches("front", packet.front, packet.front_num);
 	printTouches("rear", packet.rear, packet.rear_num);
@@ -1049,11 +1112,23 @@ static void printMonitor(const PadPacketV2& packet)
 	fflush(stdout);
 }
 
+#ifdef __WIN32__
+// Taken while the virtual controller is used, switched or released
+static CRITICAL_SECTION outputLock;
+
+// Both locks are ready before main/WinMain runs: the tray app reads the status from its own
+// thread as soon as it starts
+static struct LockInit {
+	LockInit() { InitializeCriticalSection(&statusLock); InitializeCriticalSection(&outputLock); }
+} lockInit;
+#endif
+
 // Feeds a packet to the active emulation mode, returns false on unrecoverable errors
 static bool processPacket(const PadPacketV2& packet)
 {
 	static PadPacket olddata;
 	static bool firstScan = true;
+	updateStats(packet);
 	if (MONITOR_MODE)
 	{
 		printMonitor(packet);
@@ -1071,6 +1146,11 @@ static bool processPacket(const PadPacketV2& packet)
 	}
 
 	#ifdef __WIN32__
+	// The output can be switched or released from another thread (tray app)
+	struct OutputGuard {
+		OutputGuard() { EnterCriticalSection(&outputLock); }
+		~OutputGuard() { LeaveCriticalSection(&outputLock); }
+	} guard;
 	if (VJOY_MODE)
 	{
 		processVjoy(data);
@@ -1079,7 +1159,7 @@ static bool processPacket(const PadPacketV2& packet)
 	{
 		if (!vgSubmit(&packet, &VIGEM_OPTIONS))
 		{
-			printf("\nERROR: Feeding VIGEM failed, please restart the app.\n");
+			setError("Feeding the ViGEm virtual controller failed, please restart VitaPad.");
 			return false;
 		}
 	}
@@ -1094,7 +1174,7 @@ static bool processPacket(const PadPacketV2& packet)
 		vitaToXbox(&packet, &options, &state);
 		if (!vgSubmitX360(&state))
 		{
-			printf("\nERROR: Feeding VIGEM failed, please restart the app.\n");
+			setError("Feeding the ViGEm virtual controller failed, please restart VitaPad.");
 			return false;
 		}
 	}
@@ -1126,8 +1206,9 @@ void ControllerCleanup()
 {
     if (VJOY_MODE)
     {
-        abortVjoy();
+        if (VJOY_DEVID) RelinquishVJD(VJOY_DEVID);
         VJOY_MODE = false;
+        VJOY_DEVID = 0;
     }
     else if (VIGEM_MODE != VIGEM_DEVICE_NONE)
     {
@@ -1136,6 +1217,59 @@ void ControllerCleanup()
     }
 }
 
+// Brings the virtual controller in line with the config: called at startup and whenever the config
+// changes, so switching modes needs no restart
+static void syncController()
+{
+	static bool first = true;
+	static unsigned int applied_vigem = 0;
+	static bool applied_vjoy = false;
+	if (MONITOR_MODE) return;
+	unsigned int want_vigem = WANT_VIGEM_MODE <= VIGEM_DEVICE_X360 ? WANT_VIGEM_MODE : VIGEM_DEVICE_NONE;
+	bool want_vjoy = WANT_VJOY_MODE;
+	if (!first && want_vigem == applied_vigem && want_vjoy == applied_vjoy) return;
+	first = false;
+	applied_vigem = want_vigem;
+	applied_vjoy = want_vjoy;
+
+	EnterCriticalSection(&outputLock);
+	ControllerCleanup();
+	setError(NULL);
+	const char* output = "Keyboard and mouse";
+	if (want_vigem != VIGEM_DEVICE_NONE)
+	{
+		if (want_vjoy) printf("vJoy and ViGEm are both enabled in the config, using ViGEm.\n");
+		output = want_vigem == VIGEM_DEVICE_X360 ? "Xbox 360 controller" : "DualShock 4";
+		printf("ViGEm mode: %s.\n", output);
+		if (vgInit(want_vigem)) VIGEM_MODE = want_vigem;
+		else
+		{
+			setError("The ViGEmBus driver isn't installed or isn't working, so the virtual controller couldn't be created. Using keyboard and mouse instead.");
+			output = "Keyboard and mouse";
+		}
+	}
+	else if (want_vjoy)
+	{
+		printf("vJoy mode.\n");
+		VJOY_MODE = true;
+		initVjoy();
+		output = VJOY_MODE ? "vJoy" : "Keyboard and mouse";
+	}
+	LeaveCriticalSection(&outputLock);
+
+	STATUS_LOCK();
+	STATUS.output = output;
+	STATUS_UNLOCK();
+}
+
+void clientShutdown()
+{
+	EnterCriticalSection(&outputLock);
+	ControllerCleanup();
+	LeaveCriticalSection(&outputLock);
+}
+
+#ifndef VITAPAD_GUI
 BOOL WINAPI HandlerRoutine(
     _In_ DWORD dwCtrlType
     )
@@ -1156,23 +1290,39 @@ BOOL WINAPI HandlerRoutine(
    }
 }
 #endif
+#else
+void clientShutdown()
+{
+	#ifdef __linux__
+	if (UINPUT_ACTIVE) uiDestroy();
+	UINPUT_ACTIVE = false;
+	#endif
+}
+#endif
 
 enum {
 	SESSION_LOST,
 	SESSION_OUTDATED_SERVER,
 	SESSION_FATAL,
-	SESSION_NO_STREAM
+	SESSION_NO_STREAM,
+	SESSION_RESTART   // A setting changed that needs a new session
 };
 
 // Reloads the config file when it was modified
 static void reloadConfigIfChanged(time_t& life_tick)
 {
 	time_t re_tick = getLastModifiedTime(CONFIG_FILE);
-	if (re_tick != life_tick){
+	if (re_tick != life_tick || RELOAD_REQUESTED){
+		RELOAD_REQUESTED = false;
+		bool stream_mode = STREAM_MODE;
 		loadConfig(CONFIG_FILE);
 		life_tick = re_tick;
-		printf("\nConfig file reloaded since a modification has been detected.");
+		printf("\nConfig file reloaded since a modification has been detected.\n");
 		fflush(stdout);
+		if (STREAM_MODE != stream_mode) RECONNECT_REQUESTED = true;
+		#ifdef __WIN32__
+		syncController();
+		#endif
 	}
 }
 
@@ -1188,6 +1338,7 @@ static int runPolling(sock_t sock, time_t& life_tick)
 			last_config = nowMs();
 			reloadConfigIfChanged(life_tick);
 		}
+		if (RECONNECT_REQUESTED) return SESSION_RESTART;
 		if (!sendAll(sock, REQUEST_V2, REQUEST_SIZE)) return SESSION_LOST;
 		int count = recvAll(sock, &packet, sizeof(PadPacketV2));
 		// Old Vita apps ignore the request type and reply with a legacy packet
@@ -1233,6 +1384,7 @@ static int runStream(sock_t sock, time_t& life_tick)
 			send(udp, STREAM_HELLO, sizeof(STREAM_HELLO), 0);
 			last_hello = now;
 		}
+		if (RECONNECT_REQUESTED) { result = SESSION_RESTART; break; }
 		if (!streaming && now - start > STREAM_PROBE_MS) { result = SESSION_NO_STREAM; break; }
 		if (streaming && now - last_packet > STREAM_LOST_MS) { result = SESSION_LOST; break; }
 		if (now - last_config >= CONFIG_CHECK_MS)
@@ -1321,10 +1473,19 @@ static int runSession(sock_t sock, time_t& life_tick)
 	return runPolling(sock, life_tick);
 }
 
-int main(int argc,char** argv){
+bool clientOpenViewer()
+{
+	if (!viewerStart(VIEWER_PORT)) return false;
+	VIEWER_MODE = true;
+	return true;
+}
+
+int clientMain(int argc, char** argv){
 
 	#ifdef __WIN32__
+	#ifndef VITAPAD_GUI
     SetConsoleCtrlHandler(HandlerRoutine, TRUE);
+	#endif
 
 	WORD versionWanted = MAKEWORD(2, 2);
 	WSADATA wsaData;
@@ -1338,7 +1499,7 @@ int main(int argc,char** argv){
 		if (strcmp(argv[i], "--monitor") == 0) MONITOR_MODE = true;
 		else if (strcmp(argv[i], "--viewer") == 0) VIEWER_MODE = true;
 		else if (strcmp(argv[i], "--poll") == 0) FORCE_POLL = true;
-		else ip_arg = argv[i];
+		else if (strncmp(argv[i], "--", 2) != 0) ip_arg = argv[i];
 	}
 
     #ifdef __linux__
@@ -1351,14 +1512,11 @@ int main(int argc,char** argv){
 	loadConfig(CONFIG_FILE);
 	life_tick = getLastModifiedTime(CONFIG_FILE);
 
-	printf("VitaPad Client v1.9.1 by Rinnegatamante\n\n");
+	printf("VitaPad Client v1.9.2 by Rinnegatamante\n\n");
 	if (MONITOR_MODE)
 	{
 		printf("MONITOR MODE: printing what the Vita sends, no input is emulated.\n\n");
-		#ifdef __WIN32__
-		VJOY_MODE = false;
-		VIGEM_MODE = VIGEM_DEVICE_NONE;
-		#endif
+		STATUS.output = "Monitor (no input emulated)";
 	}
 	#ifdef __linux__
 	if (!MONITOR_MODE)
@@ -1368,6 +1526,7 @@ int main(int argc,char** argv){
 			printf("Virtual Xbox 360 controller mode (UINPUT_MODE in linux.xml).\n");
 			UINPUT_ACTIVE = uiInit();
 			if (!UINPUT_ACTIVE) printf("Falling back to keyboard and mouse.\n");
+			else STATUS.output = "Xbox 360 controller";
 		}
 		// Keyboard and mouse emulation goes through X11
 		if (!UINPUT_ACTIVE)
@@ -1382,25 +1541,7 @@ int main(int argc,char** argv){
 	}
 	#endif
 	#ifdef __WIN32__
-	if (VJOY_MODE && (VIGEM_MODE != VIGEM_DEVICE_NONE))
-	{
-        printf("!!!CONFLICTING!!!\nvJoy and ViGEm cannot be enabled at the same time.\nEdit the config and restart the application to disable at least one of them.\n");
-	}
-    else if (VJOY_MODE)
-    {
-        printf("!!!STARTING IN VJOY MODE!!!\nEdit the config and restart the application to disable it.\n");
-		initVjoy();
-    }
-    else if (VIGEM_MODE == VIGEM_DEVICE_DS4 || VIGEM_MODE == VIGEM_DEVICE_X360)
-    {
-        printf("!!!STARTING IN VIGEM MODE (%s)!!!\nEdit the config and restart the application to disable it.\n",
-            VIGEM_MODE == VIGEM_DEVICE_X360 ? "Xbox 360 controller" : "DualShock 4");
-        if (!vgInit(VIGEM_MODE))
-        {
-            printf("ERROR: An error occurred while initializing ViGEm. Reverting back to keybinds.\n");
-            VIGEM_MODE = VIGEM_DEVICE_NONE;
-        }
-    }
+	syncController();
 	#endif
 
 	if (VIEWER_MODE && !viewerStart(VIEWER_PORT))
@@ -1419,6 +1560,8 @@ int main(int argc,char** argv){
 	bool waiting = false;
 	int result = SESSION_LOST;
 	for (;;){
+		reloadConfigIfChanged(life_tick);
+		RECONNECT_REQUESTED = false;
 		sock_t sock = INVALID_SOCKET;
 		if (host[0])
 		{
@@ -1426,6 +1569,7 @@ int main(int argc,char** argv){
 			{
 				printf("Connecting to %s:%d...\n", host, GAMEPAD_PORT);
 				fflush(stdout);
+				setState(CLIENT_CONNECTING, host);
 			}
 			sock = connectTo(host, CONNECT_TIMEOUT_MS);
 		}
@@ -1433,6 +1577,7 @@ int main(int argc,char** argv){
 		{
 			if (host[0] && !waiting) printf("Unable to connect to %s.\n", host);
 			// The Vita may not be running VitaPad yet, or may have got a new IP from the router: look for it
+			setState(CLIENT_SEARCHING, NULL);
 			char found[64];
 			if (discoverVita(found, sizeof(found), !waiting) && strcmp(found, host) != 0)
 			{
@@ -1458,6 +1603,7 @@ int main(int argc,char** argv){
 		printf("Connection established!\n");
 		fflush(stdout);
 		saveIp(host);
+		setState(CLIENT_CONNECTED, host);
 		if (VIEWER_MODE) viewerSetConnected(true);
 
 		result = runSession(sock, life_tick);
@@ -1471,19 +1617,29 @@ int main(int argc,char** argv){
 
 		if (result == SESSION_OUTDATED_SERVER)
 		{
-			printf("\nERROR: The VitaPad app on your Vita is outdated, please update it to use this client.\n");
+			setError("The VitaPad app on your Vita is outdated, please update it to use this client.");
 			break;
 		}
 		if (result == SESSION_FATAL) break;
-		printf("\nConnection lost, reconnecting...\n");
+		if (result == SESSION_RESTART) printf("\nReconnecting to apply the new settings...\n");
+		else printf("\nConnection lost, reconnecting...\n");
+		setState(CLIENT_CONNECTING, host);
 	}
+	setState(CLIENT_STOPPED, NULL);
 
     #ifdef __linux__
-    if (UINPUT_ACTIVE) uiDestroy();
+    clientShutdown();
     if (display) XCloseDisplay(display);
     #elif defined(__WIN32__)
-    ControllerCleanup();
+    clientShutdown();
     #endif
 
 	return 1;
 }
+
+#ifndef VITAPAD_GUI
+int main(int argc, char** argv)
+{
+	return clientMain(argc, argv);
+}
+#endif

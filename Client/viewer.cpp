@@ -231,6 +231,15 @@ static void openBrowser(const char* url)
 
 bool viewerStart(int port)
 {
+	// Already running (the tray app can open it several times): just show it again
+	static bool started = false;
+	char url[64];
+	snprintf(url, sizeof(url), "http://localhost:%d/", port);
+	if (started)
+	{
+		openBrowser(url);
+		return true;
+	}
 	#ifdef __WIN32__
 	InitializeCriticalSection(&lock);
 	#endif
@@ -262,8 +271,7 @@ bool viewerStart(int port)
 	pthread_detach(thread);
 	#endif
 
-	char url[64];
-	snprintf(url, sizeof(url), "http://localhost:%d/", port);
+	started = true;
 	printf("3D viewer running at %s\n", url);
 	openBrowser(url);
 	return true;
